@@ -69,3 +69,36 @@ describe('set_reminders', () => {
     expect(findHelp('how do notifications work')?.id).toBe('reminders');
   });
 });
+
+describe('review round 3', () => {
+  it.each([
+    ['remind me at 5pm to call mom on friday', 'add_task'],
+    ['remind me on monday to pay rent', 'add_task'],
+    ['evening check in with mom', 'add_task'],
+    ["call grandma, don't forget", 'add_task'],
+  ])('"%s" is a task, not a reminder setting', (msg, type) => {
+    const cmds = parseFallback(msg, ctx).commands;
+    expect(cmds.some((c) => c.type === 'set_reminders')).toBe(false);
+    if (type === 'add_task' && msg.startsWith('remind')) expect(cmds[0]?.type).toBe('add_task');
+  });
+  it('time is pulled out only when it really is a time', () => {
+    const t = (m: string) => parseFallback(m, ctx).commands[0] as { title?: string; time?: string };
+    expect(t('remind me to buy milk at 7-eleven')).toMatchObject({ title: 'buy milk at 7-eleven' });
+    expect(t('remind me to finish the report by 2 weeks').time).toBeUndefined();
+    expect(t('remind me to book a table at 5 people').time).toBeUndefined();
+    expect(t('remind me to call mom at 5:30')).toMatchObject({ time: '17:30' });
+  });
+  it('edit_task with a bad time keeps the old time; "none" clears it', async () => {
+    const d = new YourselfDB(`r-${Math.random()}`);
+    await runCommands([{ type: 'add_task', title: 'gym', time: '18:00' }], d, TODAY);
+    await runCommands([{ type: 'edit_task', task: 'gym', time: 'soon' }], d, TODAY);
+    expect((await d.tasks.toArray())[0].time).toBe('18:00');
+    await runCommands([{ type: 'edit_task', task: 'gym', time: 'none' }], d, TODAY);
+    expect((await d.tasks.toArray())[0].time).toBeUndefined();
+  });
+  it('turning reminders on from chat explains the permission step', async () => {
+    const d = new YourselfDB(`r-${Math.random()}`);
+    const r = await runCommands([{ type: 'set_reminders', enabled: true }], d, TODAY);
+    expect(r.effects.join(' ')).toMatch(/Settings → Reminders/);
+  });
+});

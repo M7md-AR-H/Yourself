@@ -16,7 +16,8 @@
   - On the Chart, the overview and the open block sit side by side.
   - **⌘K / Ctrl+K** opens a command menu (pages, actions, pillars, help sections, "Ask the assistant"). It was built by a Sonnet subagent, then wired and checked by me.
   - Keyboard shortcuts: G then T/C/R/N/A/S/H, N for a new note, T for a new task, / to focus the assistant.
-- **Tests:** 175 unit, 35 e2e (POCO F5 light/dark, 360 px, laptop 1440×900). The eval has 89 cases; the offline parser scores 79/89.
+- **Code review (Sonnet):** no high-severity issues. Fixed 12 medium/low ones: reminders were silently stamped when permission was missing, overlapping and multi-tab ticks, the scheduler never stopping, the reminder rule hijacking "remind me at 5pm to…", `TIME_RE` stealing "at 7-eleven"/"by 2 weeks", an inconsistent am/pm heuristic, a bad `edit_task` time wiping the old one, ⌘K focus restore, a stale theme label, key-repeat shortcuts, a wrong `aria-keyshortcuts`, and SW versionchange/navigate errors.
+- **Tests:** 182 unit, 35 e2e (POCO F5 light/dark, 360 px, laptop 1440×900). The eval has 89 cases; the offline parser scores 79/89.
 
 ## Current state
 - **Works (verified in headless Chromium):** everything above at phone and laptop sizes, in light and dark mode.

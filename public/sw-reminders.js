@@ -15,6 +15,7 @@ function readAll(store) {
     open.onupgradeneeded = () => { open.transaction.abort(); resolve([]); }; // never create the DB from here
     open.onsuccess = () => {
       const db = open.result;
+      db.onversionchange = () => db.close(); // never block the app's schema upgrades
       if (!db.objectStoreNames.contains(store)) { db.close(); resolve([]); return; }
       const req = db.transaction(store, 'readonly').objectStore(store).getAll();
       req.onsuccess = () => { db.close(); resolve(req.result || []); };
@@ -49,7 +50,11 @@ self.addEventListener('notificationclick', (event) => {
   event.waitUntil((async () => {
     const all = await self.clients.matchAll({ type: 'window', includeUncontrolled: true });
     for (const c of all) {
-      if (c.url.startsWith(self.registration.scope)) { await c.focus(); c.navigate && c.navigate(url); return; }
+      if (c.url.startsWith(self.registration.scope)) {
+        await c.focus();
+        try { if (c.navigate) await c.navigate(url); } catch (e) { /* uncontrolled client: focusing is enough */ }
+        return;
+      }
     }
     await self.clients.openWindow(url);
   })());

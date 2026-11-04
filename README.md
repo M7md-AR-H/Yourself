@@ -88,6 +88,7 @@ Part B:
 - [x] Chart overview + block detail side by side
 - [x] ⌘K / Ctrl+K command menu (pages, actions, pillars, help, "ask the assistant") with shortcut hints — built by a Sonnet subagent, wired + checked by Opus
 - [x] Keyboard shortcuts (G then T/C/R/N/A/S/H, N = new note, T = new task, / = focus assistant)
+- [x] Code review (Sonnet): 12 medium/low findings fixed, no high-severity issues
 - [ ] Waits on owner decision: sync between phone and laptop (see HANDOFF open questions)
 
 ## Decision log

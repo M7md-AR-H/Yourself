@@ -1,6 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react';
 import * as engine from './ai/engine';
-import { startScheduler } from './lib/reminders';
+import { permission, registerBackgroundCheck, startScheduler, stopScheduler } from './lib/reminders';
 import { navigate, useRoute, useSettings, useTheme, type Route } from './lib/hooks';
 import type { Settings as SettingsT } from './lib/types';
 import { CommandMenu } from './ui/CommandMenu';
@@ -24,7 +24,11 @@ export default function App() {
   useTheme(settings?.theme);
 
   // Reminder checks run while the app is alive (open or in the background).
-  useEffect(() => { if (settings?.reminders?.enabled) startScheduler(); }, [settings?.reminders?.enabled]);
+  useEffect(() => {
+    if (!settings?.reminders?.enabled) { stopScheduler(); return; }
+    startScheduler();
+    if (permission() === 'granted') void registerBackgroundCheck(true); // also when turned on from chat
+  }, [settings?.reminders?.enabled]);
 
   // Start the model in the background if the user turned it on before.
   useEffect(() => {

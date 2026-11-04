@@ -38,7 +38,7 @@ export function Rail({ route, onPlus }: { route: Route; onPlus: () => void }) {
     const active = route.page === n.page;
     return (
       <button key={n.page} className={`rail-btn ${active ? 'on' : ''}`} aria-current={active ? 'page' : undefined} aria-label={n.label}
-        data-tip={`${n.label}  ${n.keys}`} aria-keyshortcuts={n.keys.replace(' ', '+')} onClick={() => navigate(n.page)}>
+        data-tip={`${n.label}  ${n.keys}`} onClick={() => navigate(n.page)}>
         <n.icon size={20} aria-hidden />
       </button>
     );
@@ -56,7 +56,7 @@ export function Rail({ route, onPlus }: { route: Route; onPlus: () => void }) {
 
 const typing = (el: EventTarget | null) => {
   const e = el as HTMLElement | null;
-  return !!e && (e.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.tagName));
+  return !!e && (e.isContentEditable || ['INPUT', 'TEXTAREA', 'SELECT'].includes(e.tagName) || e.getAttribute('role') === 'textbox');
 };
 
 /** ⌘K / Ctrl+K menu, "/" focuses the assistant, G-then-letter jumps to pages, N new note, T new task. */
@@ -66,8 +66,13 @@ export function useShortcuts(opts: { onMenu: () => void; onEdit: (t: EditorTarge
     let g = 0;
     const map: Record<string, Page> = { t: 'today', c: 'chart', r: 'review', n: 'notes', a: 'chat', s: 'settings', h: 'help' };
     const onKey = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') { e.preventDefault(); opts.onMenu(); return; }
-      if (e.metaKey || e.ctrlKey || e.altKey || typing(e.target) || document.querySelector('[role="dialog"]')) return;
+      if (e.isComposing || e.repeat) return;
+      if ((e.metaKey || e.ctrlKey) && e.key.toLowerCase() === 'k') {
+        e.preventDefault();
+        if (!document.querySelector('.sheet[role="dialog"]')) opts.onMenu(); // not on top of an open sheet
+        return;
+      }
+      if (e.metaKey || e.ctrlKey || e.altKey || e.shiftKey || typing(e.target) || document.querySelector('[role="dialog"]')) return;
       const k = e.key.toLowerCase();
       if (Date.now() - g < 900 && map[k]) { e.preventDefault(); g = 0; navigate(map[k]); return; }
       if (k === 'g') { g = Date.now(); return; }
@@ -82,13 +87,14 @@ export function useShortcuts(opts: { onMenu: () => void; onEdit: (t: EditorTarge
 
 export function useCommandItems(settings: Settings, onEdit: (t: EditorTarget) => void): CommandItem[] {
   const { exec } = useToast();
-  const pillars = useLiveQuery(() => db.pillars.orderBy('index').filter((p) => !!p.title).toArray(), []) ?? [];
+  const pillarRows = useLiveQuery(() => db.pillars.orderBy('index').filter((p) => !!p.title).toArray(), []);
+  const pillars = useMemo(() => pillarRows ?? [], [pillarRows]);
   return useMemo(() => {
     const icon: Record<string, string> = { today: 'today', chart: 'chart', review: 'review', notes: 'notes', chat: 'chat', settings: 'settings', help: 'help' };
     const pages: CommandItem[] = [...NAV, ...NAV_END].map((n) => ({
       id: `go-${n.page}`, label: `Go to ${n.label}`, group: 'Pages', icon: icon[n.page], shortcut: n.keys.split(' '), run: () => navigate(n.page),
     }));
-    const dark = document.documentElement.dataset.theme === 'dark';
+    const dark = settings.theme === 'dark' || (settings.theme === 'system' && matchMedia('(prefers-color-scheme: dark)').matches);
     const actions: CommandItem[] = [
       { id: 'new-note', label: 'New note…', group: 'Actions', icon: 'note', shortcut: ['N'], keywords: ['write', 'add', 'journal'], run: () => onEdit({ kind: 'new', mode: 'note' }) },
       { id: 'new-task', label: 'New task…', group: 'Actions', icon: 'task', shortcut: ['T'], keywords: ['todo', 'add', 'remind'], run: () => onEdit({ kind: 'new', mode: 'task' }) },
@@ -102,7 +108,7 @@ export function useCommandItems(settings: Settings, onEdit: (t: EditorTarget) =>
       ...pillars.map((p) => ({ id: `pillar-${p.id}`, label: `Open ${p.title}`, group: 'Pillars' as const, icon: 'pillar', keywords: ['pillar', 'block'], run: () => navigate('chart', { pillar: p.index + 1 }) })),
     ];
     return [...pages, ...actions, ...blocks];
-  }, [pillars, settings.name, onEdit, exec]);
+  }, [pillars, settings.name, settings.theme, onEdit, exec]);
 }
 
 /** A tiny state holder so the top bar can show the ⌘K hint and open the menu. */

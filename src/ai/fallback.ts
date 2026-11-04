@@ -384,17 +384,21 @@ const setReminders: Rule = {
   run: (s) => {
     const t = s.toLowerCase();
     if (!/\b(?:reminders?|remind|notifications?|notify|nudge)\b/.test(t) && !/\b(?:daily|every \w+|evening|night)\s+check[- ]?in\b/.test(t)) return null; // "check in with my boss" is not about reminders
-    if (/^remind me (?:to|about)\b/.test(t)) return null; // that's a task
-    const off = /\b(?:turn off|disable|stop|no more|mute|don'?t)\b/.test(t);
+    // "remind me (at 5pm|on monday|tomorrow|to …)" is a task, not a setting — unless it's clearly about a daily check-in
+    if (/^(?:please\s+)?remind me\b/.test(t) && !/\bcheck[- ]?in\b|\bnudge\b/.test(t)) return null;
+    if (/^(?:please\s+)?remind me (?:to|about)\b/.test(t)) return null;
+    const off = /\b(?:turn off|disable|stop|no more|mute|switch off)\b/.test(t);
     const tm = t.match(/\b(?:at|for)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?|noon|evening|morning|night)\b/);
-    const daily = /\b(?:daily|every (?:day|night|evening|morning)|check[- ]?in|nudge)\b/.test(t);
+    const daily = /\b(?:daily|every (?:day|night|evening|morning))\b/.test(t) && /\b(?:check[- ]?in|nudge|remind|reminders?)\b/.test(t)
+      || /\b(?:check[- ]?in|nudge) (?:reminder|notification)s?\b/.test(t) || /\bnudge me\b/.test(t);
     if (daily) {
       if (off) return [{ type: 'set_reminders', checkin: 'off' }];
       const time = tm ? resolveTime(tm[1]) : '21:00';
       return time ? [{ type: 'set_reminders', enabled: true, checkin: time }] : null;
     }
-    if (!/\b(?:turn on|enable|start|switch on|turn off|disable|stop|switch off|mute|on|off)\b/.test(t)) return null;
-    return [{ type: 'set_reminders', enabled: !off && !/\boff\b/.test(t) }];
+    // needs an explicit noun AND an on/off verb: "turn on reminders", "disable notifications"
+    if (!/\b(?:reminders|notifications)\b/.test(t) || !/\b(?:turn on|enable|start|switch on|allow|turn off|disable|stop|switch off|mute|no more)\b/.test(t)) return null;
+    return [{ type: 'set_reminders', enabled: !off }];
   },
 };
 
@@ -732,7 +736,8 @@ function describe(c: Command): string {
 }
 
 /** Pull "at 5pm" / "at 17:30" / "5:30pm" out of a task title into its own field. */
-const TIME_RE = /\s*(?:\b(?:at|by|@|around)\s+)?\b(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)|(?:at|by|@|around)\s+\d{1,2}(?::\d{2})?|noon|midday)\b/i;
+// "at 5" only counts as a time when nothing number-like follows ("at 7-eleven", "by 2 weeks", "at 5 people" stay in the title)
+const TIME_RE = /\s*(?:\b(?:at|by|@|around)\s+)?\b(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)|(?:at|by|@|around)\s+\d{1,2}(?::\d{2})?(?![\w-]|\s+(?:days?|weeks?|months?|years?|hours?|hrs?|mins?|minutes?|people|persons?|times?|pages?|km|kg|items?|[a-z]+s)\b)|noon|midday)\b/i;
 function withTime(cmds: Command[]): Command[] {
   return cmds.map((c) => {
     if (c.type !== 'add_task' || c.time) return c;

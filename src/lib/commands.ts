@@ -95,7 +95,7 @@ export function resolveTime(input: string | undefined): string | undefined {
   const min = m[2] ? Number(m[2]) : 0;
   const ap = m[3]?.[0];
   if (min > 59 || h > 23 || (ap && (h < 1 || h > 12))) return undefined;
-  if (!m[2] && !ap && h < 7) h += 12; // "at 5" most likely means 5pm
+  if (!ap && h >= 1 && h <= 6) h += 12; // "at 5" / "5:30" without am/pm most likely means the afternoon
   if (ap === 'p' && h < 12) h += 12;
   if (ap === 'a' && h === 12) h = 0;
   return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
@@ -285,7 +285,8 @@ export class Runner {
         if (!t) return void this.errors.push(`Couldn’t find task “${c.task}”.`);
         const title = str(c.title) || t.title;
         const due = c.due !== undefined ? resolveDate(c.due, this.today) : t.due;
-        const time = c.time !== undefined ? resolveTime(c.time) : t.time;
+        const clear = typeof c.time === 'string' && /^(?:|none|no time|clear|remove)$/i.test(c.time.trim());
+        const time = c.time === undefined ? t.time : clear ? undefined : resolveTime(c.time) ?? t.time;
         const moved = due !== t.due || time !== t.time;
         await this.put('tasks', { ...t, title, due: due ?? (time ? this.today : undefined), time, notifiedAt: moved ? undefined : t.notifiedAt, updatedAt: now });
         this.effects.push(`Updated “${title}”`);
@@ -349,6 +350,8 @@ export class Runner {
         const enabled = c.enabled ?? (checkin ? true : cur.enabled);
         await this.put('settings', { ...s, reminders: { ...cur, enabled, checkin } });
         this.effects.push(enabled ? `Reminders on${checkin ? ` · daily check-in ${formatTime(checkin)}` : ''}` : 'Reminders off');
+        const perm = typeof Notification === 'undefined' ? 'unsupported' : Notification.permission;
+        if (enabled && perm !== 'granted') this.effects.push('Tap Settings → Reminders → “Turn on reminders” to allow notifications');
         return;
       }
       default: {

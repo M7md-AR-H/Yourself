@@ -43,7 +43,9 @@ export function CommandMenu({ open, onClose, items, onAsk }: {
     const t = setTimeout(() => panel.current?.querySelector<HTMLElement>('input')?.focus(), 30);
     return () => {
       clearTimeout(t);
-      (opener.current as HTMLElement | null)?.focus?.();
+      // Restore focus only if the action didn't move it somewhere on purpose (e.g. "Talk to the assistant").
+      const a = document.activeElement;
+      if (!a || a === document.body || panel.current?.contains(a)) (opener.current as HTMLElement | null)?.focus?.();
     };
   }, [open]);
 
@@ -57,7 +59,7 @@ export function CommandMenu({ open, onClose, items, onAsk }: {
   const runRow = (row: CommandItem | undefined) => {
     if (!row) return;
     close.current();
-    row.run();
+    setTimeout(() => row.run(), 0); // after the menu's focus restore, so the action's own focus wins
   };
 
   const onKeyDown = (e: React.KeyboardEvent) => {

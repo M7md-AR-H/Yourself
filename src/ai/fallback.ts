@@ -617,6 +617,7 @@ const pastTask: Rule = {
     if (!m || !ctx.tasks.some((x) => !x.done)) return null;
     const v = m[1].toLowerCase();
     if (/^(?:need|feed|seed|speed|bleed|breed|weed|heed|indeed|proceed|exceed|succeed|bed|red|shed|wed)$/.test(v) || /^to\b/i.test(m[2])) return null;
+    if (/\b(?:nothing|no|not|never|wrong|in sick)\b/i.test(m[2]) || /'s\b/.test(m[2])) return null;
     const lemma = PAST_VERBS[v] ?? (/(?:[^aeiou])ied$/.test(v) ? v.slice(0, -3) + 'y' : /ed$/.test(v) ? v.replace(/(.)\1ed$/, '$1').replace(/ed$/, '') : null);
     if (!lemma) return null;
     const cands = [`${lemma} ${m[2]}`, `${lemma}e ${m[2]}`, ...(PAST_VERBS[v] ? [m[2]] : [])].map(taskRef);
@@ -625,7 +626,9 @@ const pastTask: Rule = {
       const r = matchTask(c, ctx, true);
       if (r && (!best || r.score > best.score)) best = r;
     }
-    return best && best.score >= 0.55 ? [{ type: 'complete_task', task: best.task.title }] : null;
+    // the user's object must be (almost) the whole task: "sent report to the wrong person" ≠ "Send report"
+    const extra = best ? normalize(m[2]).split(' ').filter((w) => w.length > 2 && !['the', 'and', 'my', 'today', 'finally', 'already'].includes(w) && !normalize(best!.task.title).includes(w)).length : 9;
+    return best && best.score >= 0.55 && extra <= 1 ? [{ type: 'complete_task', task: best.task.title }] : null;
   },
 };
 
@@ -635,13 +638,15 @@ const helpRule: Rule = {
   whole: true,
   run: (_s, _ctx, o) => {
     const t = o.toLowerCase().trim();
-    const asks = /^(?:help\b|how (?:do|can|should) (?:i|you)\b|how to\b|how does\b|where (?:do|can|is)\b|what can you do|what do i do|i need help|i'?m (?:stuck|lost|confused)|(?:show|open) (?:the )?(?:help|guide|instructions|tutorial))/.test(t)
-      || /\b(?:help page|setup guide|instructions)\b/.test(t)
-      || /[,.!]\s*(?:please\s+)?help[!?.]*$/.test(t) || /\b(?:not working|doesn'?t work|won'?t (?:load|start|open)|keeps crashing)\b/.test(t)
-      || (/^(?:setup|set up|install|troubleshoot)/.test(t) && t.split(' ').length <= 8);
-    if (!asks) return null;
-    // "how do I add a task" is fine for help too, but "help me remember to X" is a task, not help
-    if (/^help me (?:remember|to)\b/.test(t)) return null;
+    const APP = /\b(?:app|ai|gemma|model|assistant|chart|pillar|review|note|notes|task|tasks|backup|export|import|voice|mic|data|privacy|phone|webgpu|offline|this)\b/;
+    const bare = /^(?:help|i need help|show help|open (?:the )?help|what can you do)[!?.]*$/.test(t)
+      || /^(?:show|open) (?:the )?(?:help|guide|instructions|tutorial)\b/.test(t)
+      || /\b(?:help page|setup guide)\b/.test(t);
+    const howTo = /^(?:how (?:do|can|should) i|how to|how does|where (?:do|can) i|where is)\b/.test(t) && APP.test(t);
+    const broken = /\b(?:not working|doesn'?t work|won'?t (?:load|start|open)|keeps crashing|is (?:so |really |very )?slow|stuck)\b/.test(t) && APP.test(t);
+    const setup = /^(?:set ?up|install|troubleshoot)\s+(?:the\s+)?(?:app|assistant|gemma|ai|it|this|yourself)\b/.test(t);
+    const trailing = /[,.!]\s*(?:please\s+)?help[!?.]*$/.test(t) && APP.test(t);
+    if (!(bare || howTo || broken || setup || trailing)) return null;
     const sec = findHelp(t);
     return [{ type: 'navigate', page: 'help', ...(sec ? { section: sec.id } : {}) }];
   },

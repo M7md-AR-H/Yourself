@@ -72,6 +72,7 @@ Part A (no phone needed, session 2):
 - [x] Help page (`#/help`, owner request): setup + usage + troubleshooting; the AI answers from it and opens the right section
 - [x] Offline parser: past-tense task completion ("bought the milk"), fixed note-prefix safety bug
 - [x] Deploy via `gh-pages` branch (owner asked Claude to deploy)
+- [x] Code review (Sonnet): 12 medium/low findings fixed, no high-severity issues
 
 Part B (needs phone feedback):
 - [ ] Fix whatever the phone test finds (performance, keyboard, model memory)

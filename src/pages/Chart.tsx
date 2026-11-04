@@ -114,9 +114,9 @@ function Overview({ stats, goal, empty }: { stats: ChartStats; goal?: Goal; empt
       </div>
 
       {pillars.length > 0 && (
-        <div className="filter-row pillar-strip" role="list" aria-label="Pillars">
+        <div className="filter-row pillar-strip" role="group" aria-label="Pillars">
           {pillars.map(({ p, i }) => (
-            <button key={p!.pillar.id} role="listitem" className="pchip glass" onClick={() => navigate('chart', { pillar: i + 1 })} aria-label={`${p!.pillar.title} ${pct(p!.score)}. Open`}>
+            <button key={p!.pillar.id} className="pchip glass" onClick={() => navigate('chart', { pillar: i + 1 })} aria-label={`${p!.pillar.title} ${pct(p!.score)}. Open`}>
               <Ring value={p!.score} size={28} stroke={4} />
               <span>
                 <span className="pchip-name">{p!.pillar.title}</span>

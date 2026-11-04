@@ -88,3 +88,22 @@ describe('past-tense task completion', () => {
     expect(score({ id: 'x', message: '', expect: [{ type: 'add_note' }] }, r.commands, TODAY).pass).toBe(true);
   });
 });
+
+describe('review round 2: help must not steal tasks; past-tense guards', () => {
+  it.each([
+    'set up a task to call mom',
+    'install new shelves tomorrow',
+    'what do I do today',
+    'help me find time to run',
+    'how to cook rice for dinner tomorrow',
+  ])('"%s" does not open help', (msg) => {
+    expect(parseFallback(msg, ctx).commands.some((c) => c.type === 'navigate' && c.page === 'help')).toBe(false);
+  });
+  it('findHelp ignores substrings inside words', () => {
+    expect(findHelp('run a marathon')).toBeUndefined();
+  });
+  it.each(['called mom\'s sister', 'sent report to the wrong person about budgets', 'bought nothing today'])('"%s" completes nothing', (msg) => {
+    const c2 = { ...ctx, tasks: [{ title: 'Call mom', done: false }, { title: 'Send report', done: false }, { title: 'Buy milk', done: false }] };
+    expect(parseFallback(msg, c2).commands.some((c) => c.type === 'complete_task')).toBe(false);
+  });
+});

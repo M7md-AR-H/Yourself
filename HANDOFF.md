@@ -11,7 +11,8 @@
 - **AI eval**: `src/ai/eval.ts` (scorer) and `src/ai/eval-cases.json` (85 cases, written by a Sonnet subagent and checked by me). vitest scores the offline parser at 75/85 (88%) against a floor of 85%. **Settings → Test the assistant** runs the same cases on the phone with Gemma in a throw-away DB, and "Copy results" gives text to paste back.
 - **Offline parser**: past-tense completion of open tasks ("bought the milk" → completes "Buy milk"). Fixed a safety bug where "save this as a note: … clear done tasks" ran `clear_done_tasks`.
 - **Deploy**: `deploy.yml` now pushes `dist/` to the `gh-pages` branch and tries to point Pages at it.
-- **Tests**: 122 unit, 27 e2e (3 phone profiles). Typecheck clean, lint has no errors.
+- **Code review (Sonnet)** of this session: no high-severity issues. Fixed 12 medium/low ones: the help rule was stealing ordinary tasks, `findHelp` matched inside words, voice could go online without telling you, voice errors were silent, help text named the wrong Pages source, a task-window off-by-an-hour, `pastTask` false positives, a11y roles on buttons, and the eval not aborting on unmount.
+- **Tests**: 131 unit, 27 e2e (3 phone profiles). Typecheck clean, lint has no errors.
 
 ## Current state
 - **Works (verified here):** everything above, in light and dark mode, at 393 px and 360 px, with no horizontal scroll.

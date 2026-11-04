@@ -5,6 +5,7 @@ import { db } from '../lib/db';
 import { navigate, useEngine } from '../lib/hooks';
 import { useAssistant } from '../ui/useAssistant';
 import { useVoice } from '../ui/useVoice';
+import { useToast } from '../ui/Toaster';
 
 const STARTERS = [
   'I slept 8 hours and read in bed',
@@ -30,7 +31,13 @@ export function Chat() {
     end.current?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'end' });
   }, [messages?.length, busy]);
 
-  const voice = useVoice((t) => void submit(undefined, t), setText);
+  const { toast } = useToast();
+  const voice = useVoice({
+    onFinal: (t) => void submit(undefined, t),
+    onInterim: setText,
+    onCloud: () => toast({ title: 'Using Chrome’s online speech service', detail: 'On-device speech isn’t available on this phone, so audio goes to Google.' }),
+    onError: (m) => toast({ title: m }),
+  });
   const submit = async (e?: FormEvent, preset?: string) => {
     e?.preventDefault();
     const msg = preset ?? text;

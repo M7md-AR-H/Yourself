@@ -20,28 +20,50 @@ const Ctor = (): SRCtor | undefined =>
 
 export const voiceSupported = () => !!Ctor();
 
+const ERRORS: Record<string, string> = {
+  'not-allowed': 'Microphone blocked. Allow it in Chrome’s site settings.',
+  'service-not-allowed': 'Speech recognition isn’t allowed on this device.',
+  'no-speech': 'Didn’t hear anything. Try again.',
+  'audio-capture': 'No microphone found.',
+  network: 'Online speech needs internet. Try again on Wi‑Fi, or type instead.',
+  'language-not-supported': 'Your language isn’t supported for speech yet.',
+};
+
+export interface VoiceHandlers {
+  onFinal: (text: string) => void;
+  onInterim?: (text: string) => void;
+  /** Called every time audio goes to Google's online service (no on-device speech). */
+  onCloud?: () => void;
+  onError?: (message: string) => void;
+}
+
 /**
- * Speech → text. Tries on-device recognition first (Chrome's `processLocally`);
- * if the phone can't do that, Chrome's normal recognition sends audio to Google —
- * `onCloud` lets the UI say so.
+ * Speech → text. Tries on-device recognition first (Chrome's `processLocally`); otherwise
+ * Chrome's normal recognition sends audio to Google, and `onCloud` lets the UI say so.
  */
-export function useVoice(onFinal: (text: string) => void, onInterim?: (text: string) => void, onCloud?: () => void) {
+export function useVoice(h: VoiceHandlers) {
   const [listening, setListening] = useState(false);
   const rec = useRef<SR | null>(null);
-  const triedCloud = useRef(false);
-  const cb = useRef({ onFinal, onInterim, onCloud });
-  useEffect(() => { cb.current = { onFinal, onInterim, onCloud }; });
+  /** Remembered per session: once on-device fails, go straight to cloud next time. */
+  const localOk = useRef(true);
+  const cb = useRef(h);
+  useEffect(() => { cb.current = h; });
 
-  const start = useCallback((local = true) => {
+  const detach = (r: SR) => { r.onresult = null; r.onerror = null; r.onend = null; };
+
+  const start = useCallback(() => {
     const C = Ctor();
     if (!C) return;
-    rec.current?.abort();
+    if (rec.current) { detach(rec.current); rec.current.abort(); }
     const r = new C();
     r.lang = navigator.language || 'en-US';
     r.interimResults = true;
     r.continuous = false;
-    if (local && 'processLocally' in r) r.processLocally = true;
-    else if (!local) cb.current.onCloud?.();
+    const local = localOk.current && 'processLocally' in r;
+    if (local) r.processLocally = true;
+    else cb.current.onCloud?.();
+    let gotFinal = false;
+    let hadInterim = false;
     r.onresult = (e) => {
       let text = '';
       let final = false;
@@ -49,23 +71,31 @@ export function useVoice(onFinal: (text: string) => void, onInterim?: (text: str
         text += e.results[i][0].transcript;
         if (e.results[i].isFinal) final = true;
       }
-      if (final) cb.current.onFinal(text.trim());
-      else cb.current.onInterim?.(text);
+      if (final) { gotFinal = true; cb.current.onFinal(text.trim()); }
+      else { hadInterim = true; cb.current.onInterim?.(text); }
     };
     r.onerror = (e) => {
-      // On-device model missing for this language → fall back once to Chrome's normal recognition.
-      if (local && !triedCloud.current && ['language-not-supported', 'service-not-allowed'].includes(e.error)) {
-        triedCloud.current = true;
-        setTimeout(() => start(false), 0);
+      if (local && ['language-not-supported', 'service-not-allowed'].includes(e.error)) {
+        localOk.current = false; // on-device not available here → retry once via Chrome's online service
+        detach(r);
+        rec.current = null;
+        setTimeout(start, 0);
+        return;
       }
+      if (e.error !== 'aborted') cb.current.onError?.(ERRORS[e.error] ?? 'Voice input stopped. Try again.');
     };
-    r.onend = () => { if (rec.current === r) { setListening(false); rec.current = null; } };
+    r.onend = () => {
+      if (rec.current !== r) return;
+      if (!gotFinal && hadInterim) cb.current.onInterim?.(''); // don't leave half a sentence in the box
+      setListening(false);
+      rec.current = null;
+    };
     rec.current = r;
     setListening(true);
-    try { r.start(); } catch { setListening(false); }
+    try { r.start(); } catch { setListening(false); rec.current = null; }
   }, []);
 
   const stop = useCallback(() => rec.current?.stop(), []);
-  useEffect(() => () => rec.current?.abort(), []);
-  return { listening, start: () => start(true), stop, supported: voiceSupported() };
+  useEffect(() => () => { if (rec.current) { detach(rec.current); rec.current.abort(); } }, []);
+  return { listening, start, stop, supported: voiceSupported() };
 }

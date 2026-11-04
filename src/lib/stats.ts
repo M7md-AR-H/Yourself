@@ -74,12 +74,13 @@ export function computeStats(
   }
   const filledP = slots.filter(Boolean) as PillarStat[];
   const weekStartMs = new Date(weekStart + 'T00:00:00').getTime();
+  const endMs = new Date(addDays(today, 1) + 'T00:00:00').getTime();
   return {
     overall: filledP.length ? filledP.reduce((s, p) => s + p.score, 0) / filledP.length : 0,
     pillars: slots,
     checkinsThisWeek: thisWeek,
     checkinsLastWeek: lastWeek,
-    doneTasksThisWeek: tasks.filter((t) => t.done && (t.doneAt ?? 0) >= weekStartMs && (t.doneAt ?? 0) < weekStartMs + W * 864e5 + 36e5).length,
+    doneTasksThisWeek: tasks.filter((t) => t.done && (t.doneAt ?? 0) >= weekStartMs && (t.doneAt ?? 0) < endMs).length,
   };
 }
 

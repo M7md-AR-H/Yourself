@@ -128,7 +128,7 @@ export const HELP: HelpSection[] = [
   {
     id: 'test',
     title: 'Test how well the AI understands you',
-    summary: 'Settings → Test the assistant → Run test. It scores 80 sample messages without touching your data; “Copy results” to share them with the developer.',
+    summary: 'Settings → Test the assistant → Run test. It scores 85 sample messages without touching your data; “Copy results” to share them with the developer.',
     steps: [
       'Settings → “Test the assistant” → “Run test”. With Gemma on it takes a few minutes.',
       'It uses a separate test space, so your data isn’t touched.',
@@ -139,12 +139,12 @@ export const HELP: HelpSection[] = [
   {
     id: 'dev',
     title: 'For developers: run and deploy',
-    summary: 'Code: github.com/m7md-ar-h/yourself. npm install, npm run dev. Push to main deploys to GitHub Pages (enable Pages → Source: GitHub Actions once).',
+    summary: 'Code: github.com/m7md-ar-h/yourself. npm install, npm run dev. Merging to main deploys to GitHub Pages from the gh-pages branch.',
     steps: [
       'Get the code: github.com/m7md-ar-h/yourself. Needs Node 22.',
       'Run locally: `npm install` then `npm run dev` and open the shown address. WebGPU needs https or localhost.',
       'Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run e2e`.',
-      'Deploy: one time, repo Settings → Pages → Source: “GitHub Actions”. After that every merge to main publishes to https://m7md-ar-h.github.io/yourself/.',
+      'Deploy: every merge to main builds the app and publishes it to the `gh-pages` branch. If the site doesn’t appear, set repo Settings → Pages → Source: “Deploy from a branch” → gh-pages → / (root). Address: https://m7md-ar-h.github.io/yourself/.',
     ],
     keywords: ['developer', 'code', 'github', 'run', 'deploy', 'npm', 'build', 'host', 'pages', 'source'],
   },
@@ -154,11 +154,12 @@ export function findHelp(query: string): HelpSection | undefined {
   const q = query.toLowerCase();
   let best: HelpSection | undefined;
   let bestScore = 0;
+  const has = (k: string) => new RegExp(`(?:^|[^\\p{L}])${k.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}(?:$|[^\\p{L}])`, 'iu').test(q);
   for (const h of HELP) {
-    const score = h.keywords.reduce((n, k) => n + (q.includes(k) ? k.length : 0), 0) + (q.includes(h.id) ? 3 : 0);
+    const score = h.keywords.reduce((n, k) => n + (has(k) ? k.length : 0), 0) + (has(h.id) ? 3 : 0);
     if (score > bestScore) { bestScore = score; best = h; }
   }
-  return best;
+  return bestScore >= 4 ? best : undefined;
 }
 
 /** Compact help for the model's prompt. */

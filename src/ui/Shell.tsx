@@ -30,7 +30,12 @@ export function TopBar({ settings, route }: { settings: Settings; route: Route }
     if (!ok) setText(msg);
   };
   const submit = (e: FormEvent) => { e.preventDefault(); void sendText(text); };
-  const voice = useVoice((t) => void sendText(t), setText, () => toast({ title: 'Using Chrome’s online speech service', detail: 'On-device speech isn’t available for your language on this phone.' }));
+  const voice = useVoice({
+    onFinal: (t) => void sendText(t),
+    onInterim: setText,
+    onCloud: () => toast({ title: 'Using Chrome’s online speech service', detail: 'On-device speech isn’t available on this phone, so audio goes to Google.' }),
+    onError: (m) => toast({ title: m }),
+  });
 
   return (
     <header className="topbar glass">

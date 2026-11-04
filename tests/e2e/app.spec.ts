@@ -105,5 +105,5 @@ test('chart: done-today shows as an outline, ring per pillar strip', async ({ pa
   await say(page, 'I meditated');
   await page.goto('/#/chart');
   await expect(page.locator('.cell.today')).toHaveCount(1);
-  await expect(page.getByRole('list', { name: 'Pillars' }).getByRole('listitem')).toHaveCount(8);
+  await expect(page.getByRole('group', { name: 'Pillars' }).getByRole('button')).toHaveCount(8);
 });

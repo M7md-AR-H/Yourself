@@ -1,4 +1,4 @@
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { report, runEval, type EvalRun } from '../ai/runEval';
 import { useEngine } from '../lib/hooks';
 import { useToast } from './Toaster';
@@ -10,6 +10,7 @@ export function EvalPanel() {
   const [progress, setProgress] = useState<[number, number] | null>(null);
   const [run, setRun] = useState<EvalRun | null>(null);
   const ctrl = useRef<AbortController | null>(null);
+  useEffect(() => () => ctrl.current?.abort(), []);
 
   const start = async () => {
     ctrl.current = new AbortController();
@@ -38,7 +39,7 @@ export function EvalPanel() {
     <section className="glass card stack" aria-labelledby="s-eval">
       <h2 className="section-title" id="s-eval">Test the assistant</h2>
       <p className="subtitle" style={{ marginTop: 0 }}>
-        Runs 80 sample messages through {status.state === 'ready' ? 'Gemma' : 'the offline helper'} and scores the answers. Uses a separate test space; your data isn’t touched.{status.state === 'ready' ? ' Takes a few minutes.' : ''}
+        Runs 85 sample messages through {status.state === 'ready' ? 'Gemma' : 'the offline helper'} and scores the answers. Uses a separate test space; your data isn’t touched.{status.state === 'ready' ? ' Takes a few minutes.' : ''}
       </p>
       {progress ? (
         <div className="stack" style={{ gap: 8 }}>

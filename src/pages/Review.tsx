@@ -21,9 +21,10 @@ const fmtDay = (d: string, opts: Intl.DateTimeFormatOptions) => new Date(d + 'T1
 
 function Delta({ now, before, unit = 'pts' }: { now: number; before: number; unit?: string }) {
   const d = Math.round((now - before) * 100);
+  const word = d > 0 ? 'up' : d < 0 ? 'down' : 'no change';
   const Icon = d > 0 ? ArrowUpRight : d < 0 ? ArrowDownRight : Minus;
   return (
-    <span className={`chip ${d > 0 ? 'up' : d < 0 ? 'down' : ''}`} aria-label={`${d >= 0 ? 'up' : 'down'} ${Math.abs(d)} ${unit} vs the period before`}>
+    <span className={`chip ${d > 0 ? 'up' : d < 0 ? 'down' : ''}`} aria-label={d === 0 ? 'no change vs the period before' : `${word} ${Math.abs(d)} ${unit} vs the period before`}>
       <Icon size={14} aria-hidden />{d > 0 ? '+' : ''}{d} {unit}
     </span>
   );
@@ -41,8 +42,8 @@ export function Review() {
   const notesCount = useLiveQuery(async () => {
     const end = addDays(today, -range.offset);
     const from = new Date(addDays(end, -(range.days - 1)) + 'T00:00:00').getTime();
-    const to = new Date(end + 'T23:59:59').getTime();
-    return db.notes.where('createdAt').between(from, to, true, true).count();
+    const to = new Date(addDays(end, 1) + 'T00:00:00').getTime();
+    return db.notes.where('createdAt').between(from, to, true, false).count();
   }, [today, range.id]);
 
   const end = addDays(today, -range.offset);
@@ -51,7 +52,8 @@ export function Review() {
     const cur = computeStats(data.pillars, data.actions, data.checkins, data.tasks, end, range.days);
     const prev = computeStats(data.pillars, data.actions, data.checkins, data.tasks, addDays(end, -range.days), range.days);
     const dates = Array.from({ length: range.days }, (_, i) => addDays(end, i - (range.days - 1)));
-    const perDay = dates.map((d) => ({ d, n: data.checkins.filter((c) => c.date === d).length }));
+    const live = new Set(data.actions.filter((a) => a.title).map((a) => a.id)); // ignore check-ins of removed actions
+    const perDay = dates.map((d) => ({ d, n: data.checkins.filter((c) => c.date === d && live.has(c.actionId)).length }));
     const actions = cur.pillars.flatMap((p) => (p ? p.actions.filter((a): a is ActionStat => !!a).map((a) => ({ a, pillar: p.pillar.title })) : []));
     const top = [...actions].filter((x) => x.a.score > 0).sort((x, y) => y.a.score - x.a.score || y.a.streak - x.a.streak).slice(0, 3);
     const weak = cur.pillars.filter(Boolean).map((p) => p!).sort((a, b) => a.score - b.score).slice(0, 2)
@@ -111,11 +113,11 @@ export function Review() {
       <section className="glass card stack" aria-labelledby="rv-days">
         <div className="between">
           <h2 className="section-title" id="rv-days">Actions per day</h2>
-          <span className="label tnum" aria-live="polite">{sel ? `${fmtDay(sel.d, { weekday: 'short', day: 'numeric' })}: ${sel.n}` : `Most: ${max === 1 && !perDay.some((x) => x.n) ? 0 : max}`}</span>
+          <span className="label tnum">{sel ? `${fmtDay(sel.d, { weekday: 'short', day: 'numeric' })}: ${sel.n}` : `Most: ${max === 1 && !perDay.some((x) => x.n) ? 0 : max}`}</span>
         </div>
-        <div className="bars" role="list" aria-label="Actions logged per day">
+        <div className="bars" role="group" aria-label="Actions logged per day">
           {perDay.map((x) => (
-            <button key={x.d} role="listitem" className={`bar ${x.d === picked ? 'on' : ''}`} onClick={() => setPicked(x.d === picked ? null : x.d)}
+            <button key={x.d} className={`bar ${x.d === picked ? 'on' : ''}`} aria-pressed={x.d === picked} onClick={() => setPicked(x.d === picked ? null : x.d)}
               aria-label={`${fmtDay(x.d, { weekday: 'long', day: 'numeric', month: 'short' })}: ${x.n} action${x.n === 1 ? '' : 's'}`}>
               <motion.span className="bar-fill" initial={false} animate={{ scaleY: x.n / max }} transition={{ type: 'spring', stiffness: 260, damping: 30 }} />
             </button>

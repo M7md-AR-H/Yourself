@@ -9,6 +9,7 @@ on:
 permissions:
   contents: write
   pages: write
+  id-token: write
 concurrency: { group: pages, cancel-in-progress: true }
 jobs:
   deploy:
@@ -36,4 +37,11 @@ jobs:
           gh api -X POST "repos/${GITHUB_REPOSITORY}/pages" -f "source[branch]=gh-pages" -f "source[path]=/" \
             || gh api -X PUT "repos/${GITHUB_REPOSITORY}/pages" -f "source[branch]=gh-pages" -f "source[path]=/" \
             || echo "Could not change Pages settings with this token."
-          gh api "repos/${GITHUB_REPOSITORY}/pages" --jq '.html_url + "  status=" + (.status // "unknown")' || true
+          gh api "repos/${GITHUB_REPOSITORY}/pages" --jq '.html_url + "  source=" + (.build_type // "unknown") + "  status=" + (.status // "unknown")' || true
+      # If Pages is set to "GitHub Actions" as its source, the branch above isn't served; publish the artifact too.
+      - uses: actions/upload-pages-artifact@v3
+        with: { path: dist }
+      - name: Deploy artifact (only used when Pages source = GitHub Actions)
+        id: pages
+        continue-on-error: true
+        uses: actions/deploy-pages@v4

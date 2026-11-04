@@ -144,7 +144,7 @@ export const HELP: HelpSection[] = [
       'Get the code: github.com/m7md-ar-h/yourself. Needs Node 22.',
       'Run locally: `npm install` then `npm run dev` and open the shown address. WebGPU needs https or localhost.',
       'Checks: `npm run typecheck`, `npm run lint`, `npm test`, `npm run e2e`.',
-      'Deploy: every merge to main builds the app and publishes it to the `gh-pages` branch. If the site doesn’t appear, set repo Settings → Pages → Source: “Deploy from a branch” → gh-pages → / (root). Address: https://m7md-ar-h.github.io/yourself/.',
+      'Deploy: every merge to main builds the app and publishes it to the `gh-pages` branch. If the site doesn’t appear, set repo Settings → Pages → Source: “Deploy from a branch” → gh-pages → / (root). Address: https://m7md-ar-h.github.io/Yourself/.',
     ],
     keywords: ['developer', 'code', 'github', 'run', 'deploy', 'npm', 'build', 'host', 'pages', 'source'],
   },

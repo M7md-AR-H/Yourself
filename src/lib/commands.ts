@@ -6,7 +6,7 @@
  */
 import { db as defaultDb, type TableName, type YourselfDB, DEFAULT_SETTINGS } from './db';
 import type { Action, Note, Page, Pillar, Task, ThemePref } from './types';
-import { addDays, bestMatch, normalize, uid, ymd } from './util';
+import { addDays, bestMatch, formatDue, normalize, uid, ymd } from './util';
 
 /** A pillar ref is its name ("sleep") or its 1-based slot number (1..8). */
 export type PillarRef = string | number;
@@ -16,18 +16,18 @@ export type Command =
   | { type: 'set_goal'; title: string }
   | { type: 'set_pillar'; pillar: PillarRef; title: string }
   | { type: 'set_action'; pillar: PillarRef; title: string; slot?: number; replace?: string }
-  | { type: 'remove_action'; action: string; pillar?: PillarRef }
-  | { type: 'check_in'; action: string; date?: string }
-  | { type: 'uncheck'; action: string; date?: string }
+  | { type: 'remove_action'; action: string; pillar?: PillarRef; id?: string }
+  | { type: 'check_in'; action: string; date?: string; id?: string }
+  | { type: 'uncheck'; action: string; date?: string; id?: string }
   | { type: 'add_task'; title: string; due?: string; pillar?: PillarRef }
-  | { type: 'complete_task'; task: string }
-  | { type: 'reopen_task'; task: string }
-  | { type: 'edit_task'; task: string; title?: string; due?: string }
-  | { type: 'delete_task'; task: string }
+  | { type: 'complete_task'; task: string; id?: string }
+  | { type: 'reopen_task'; task: string; id?: string }
+  | { type: 'edit_task'; task: string; title?: string; due?: string; id?: string }
+  | { type: 'delete_task'; task: string; id?: string }
   | { type: 'clear_done_tasks' }
   | { type: 'add_note'; text: string; pillar?: PillarRef }
-  | { type: 'edit_note'; note: string; text: string }
-  | { type: 'delete_note'; note: string }
+  | { type: 'edit_note'; note: string; text: string; id?: string }
+  | { type: 'delete_note'; note: string; id?: string }
   | { type: 'navigate'; page: Page; pillar?: PillarRef }
   | { type: 'set_theme'; theme: ThemePref };
 
@@ -53,11 +53,16 @@ export interface RunResult {
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
 
 /** Turns "today", "tomorrow", "friday", "in 3 days", "2026-11-05" into YYYY-MM-DD. */
-export function resolveDate(input: string | undefined, today = ymd()): string | undefined {
+export function resolveDate(input: string | undefined, today = ymd(), past = false): string | undefined {
   if (!input) return undefined;
   const s = normalize(input);
   if (!s || s === 'none' || s === 'null') return undefined;
-  if (/^\d{4}-\d{2}-\d{2}$/.test(input.trim())) return input.trim();
+  if (/^\d{4}-\d{2}-\d{2}$/.test(input.trim())) {
+    const [y, m, d] = input.trim().split('-').map(Number);
+    const dt = new Date(y, m - 1, d);
+    return dt.getFullYear() === y && dt.getMonth() === m - 1 && dt.getDate() === d ? input.trim() : undefined;
+  }
+  if (s === 'last night') return past ? addDays(today, -1) : undefined;
   if (s === 'today' || s === 'tonight' || s === 'now') return today;
   if (s === 'tomorrow' || s === 'tmrw' || s === 'tmr') return addDays(today, 1);
   if (s === 'yesterday') return addDays(today, -1);
@@ -68,6 +73,7 @@ export function resolveDate(input: string | undefined, today = ymd()): string | 
   if (wd >= 0) {
     const [y, m, d] = today.split('-').map(Number);
     const cur = new Date(y, m - 1, d).getDay();
+    if (past) return addDays(today, -((cur - wd + 7) % 7)); // "I ran on monday" → the last monday (or today)
     let diff = (wd - cur + 7) % 7;
     if (diff === 0 || s.startsWith('next ')) diff = diff === 0 ? 7 : diff;
     return addDays(today, diff);
@@ -116,14 +122,16 @@ export class Runner {
     return bestMatch(String(ref), pillars.filter((p) => p.title), (p) => p.title, 0.5);
   }
 
-  private async findAction(name: string, pillar?: PillarRef): Promise<Action | undefined> {
+  private async findAction(name: string, pillar?: PillarRef, id?: string): Promise<Action | undefined> {
+    if (id) return this.d.actions.get(id);
     let actions = (await this.d.actions.toArray()).filter((a) => a.title);
     const p = await this.findPillar(pillar);
     if (p) actions = actions.filter((a) => a.pillarId === p.id);
     return bestMatch(name, actions, (a) => a.title, 0.45);
   }
 
-  private async findTask(q: string, openOnly?: boolean): Promise<Task | undefined> {
+  private async findTask(q: string, openOnly?: boolean, id?: string): Promise<Task | undefined> {
+    if (id) return this.d.tasks.get(id);
     let tasks = await this.d.tasks.toArray();
     if (openOnly !== undefined) {
       const pref = tasks.filter((t) => t.done !== openOnly);
@@ -134,7 +142,8 @@ export class Runner {
     return bestMatch(q, tasks, (t) => t.title, 0.4);
   }
 
-  private async findNote(q: string): Promise<Note | undefined> {
+  private async findNote(q: string, id?: string): Promise<Note | undefined> {
+    if (id) return this.d.notes.get(id);
     const notes = (await this.d.notes.toArray()).sort((a, b) => b.createdAt - a.createdAt);
     if (/^(last|latest|that|it|previous)( note)?$/.test(normalize(q))) return notes[0];
     return bestMatch(q, notes, (n) => n.text, 0.3);
@@ -163,6 +172,8 @@ export class Runner {
         const title = str(c.title);
         if (!title) return void this.errors.push('No pillar name given.');
         let p = await this.findPillar(c.pillar);
+        const slotN = typeof c.pillar === 'number' ? c.pillar : /^[1-8]$/.test(String(c.pillar).trim()) ? Number(c.pillar) : NaN;
+        if (!p && slotN >= 1 && slotN <= 8) p = { id: uid(), index: slotN - 1, title: '', updatedAt: now };
         if (!p) {
           const pillars = await this.d.pillars.toArray();
           const used = new Set(pillars.filter((x) => x.title).map((x) => x.index));
@@ -183,7 +194,7 @@ export class Runner {
         const actions = await this.d.actions.where('pillarId').equals(p.id).toArray();
         let target: Action | undefined;
         if (c.replace) target = bestMatch(c.replace, actions, (a) => a.title, 0.45);
-        if (!target && c.slot && c.slot >= 1 && c.slot <= 8) target = actions.find((a) => a.index === c.slot! - 1) ?? { id: uid(), pillarId: p.id, index: c.slot - 1, title: '', updatedAt: now };
+        if (!target && c.slot && Number.isInteger(c.slot) && c.slot >= 1 && c.slot <= 8) target = actions.find((a) => a.index === c.slot! - 1) ?? { id: uid(), pillarId: p.id, index: c.slot - 1, title: '', updatedAt: now };
         if (!target) {
           if (actions.some((a) => normalize(a.title) === normalize(title))) return void this.effects.push(`“${title}” is already in ${p.title}`);
           const used = new Set(actions.filter((a) => a.title).map((a) => a.index));
@@ -197,7 +208,7 @@ export class Runner {
         return;
       }
       case 'remove_action': {
-        const a = await this.findAction(str(c.action), c.pillar);
+        const a = await this.findAction(str(c.action), c.pillar, c.id);
         if (!a) return void this.errors.push(`Couldn’t find action “${c.action}”.`);
         await this.del('actions', a.id);
         const checks = await this.d.checkins.where('actionId').equals(a.id).toArray();
@@ -207,9 +218,10 @@ export class Runner {
       }
       case 'check_in':
       case 'uncheck': {
-        const a = await this.findAction(str(c.action));
+        const a = await this.findAction(str(c.action), undefined, c.id);
         if (!a) return void this.errors.push(`Couldn’t find “${c.action}” in your chart.`);
-        const date = resolveDate(c.date, this.today) ?? this.today;
+        const date = resolveDate(c.date, this.today, true) ?? this.today;
+        if (date > this.today) return void this.errors.push('I can only log things you already did.');
         const id = `${a.id}:${date}`;
         if (c.type === 'check_in') {
           if (await this.d.checkins.get(id)) return void this.effects.push(`“${a.title}” was already logged`);
@@ -223,25 +235,26 @@ export class Runner {
         return;
       }
       case 'add_task': {
-        const title = str(c.title);
+        const raw = str(c.title);
+        const title = raw.charAt(0).toUpperCase() + raw.slice(1);
         if (!title) return void this.errors.push('No task given.');
         const p = await this.findPillar(c.pillar);
         const t: Task = { id: uid(), title, due: resolveDate(c.due, this.today), done: false, pillarId: p?.id, createdAt: now, updatedAt: now };
         await this.put('tasks', t);
-        this.effects.push(`Task: “${title}”${t.due ? ` · ${t.due === this.today ? 'today' : t.due}` : ''}`);
+        this.effects.push(`Task: “${title}”${t.due ? ` · ${formatDue(t.due, this.today)}` : ''}`);
         return;
       }
       case 'complete_task':
       case 'reopen_task': {
         const done = c.type === 'complete_task';
-        const t = await this.findTask(str(c.task), done);
+        const t = await this.findTask(str(c.task), done, c.id);
         if (!t) return void this.errors.push(`Couldn’t find task “${c.task}”.`);
         await this.put('tasks', { ...t, done, doneAt: done ? now : undefined, updatedAt: now });
         this.effects.push(done ? `Done: “${t.title}”` : `Reopened “${t.title}”`);
         return;
       }
       case 'edit_task': {
-        const t = await this.findTask(str(c.task));
+        const t = await this.findTask(str(c.task), undefined, c.id);
         if (!t) return void this.errors.push(`Couldn’t find task “${c.task}”.`);
         const title = str(c.title) || t.title;
         const due = c.due !== undefined ? resolveDate(c.due, this.today) : t.due;
@@ -250,7 +263,7 @@ export class Runner {
         return;
       }
       case 'delete_task': {
-        const t = await this.findTask(str(c.task));
+        const t = await this.findTask(str(c.task), undefined, c.id);
         if (!t) return void this.errors.push(`Couldn’t find task “${c.task}”.`);
         await this.del('tasks', t.id);
         this.effects.push(`Deleted “${t.title}”`);
@@ -271,14 +284,14 @@ export class Runner {
         return;
       }
       case 'edit_note': {
-        const n = await this.findNote(str(c.note));
+        const n = await this.findNote(str(c.note), c.id);
         if (!n) return void this.errors.push(`Couldn’t find that note.`);
         await this.put('notes', { ...n, text: str(c.text) || n.text, updatedAt: now });
         this.effects.push('Note updated');
         return;
       }
       case 'delete_note': {
-        const n = await this.findNote(str(c.note));
+        const n = await this.findNote(str(c.note), c.id);
         if (!n) return void this.errors.push(`Couldn’t find that note.`);
         await this.del('notes', n.id);
         this.effects.push('Note deleted');
@@ -319,7 +332,7 @@ export async function runCommands(commands: Command[], d: YourselfDB = defaultDb
 
 /** Reverts a RunResult journal (newest change first). */
 export async function undo(journal: JournalEntry[], d: YourselfDB = defaultDb): Promise<void> {
-  await d.transaction('rw', [d.goal, d.pillars, d.actions, d.checkins, d.tasks, d.notes, d.settings], async () => {
+  await d.transaction('rw', [d.goal, d.pillars, d.actions, d.checkins, d.tasks, d.notes, d.settings, d.chat], async () => {
     for (const j of [...journal].reverse()) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const t = d[j.table] as any;

@@ -20,22 +20,23 @@ export type Command =
   | { type: 'remove_action'; action: string; pillar?: PillarRef; id?: string }
   | { type: 'check_in'; action: string; date?: string; id?: string }
   | { type: 'uncheck'; action: string; date?: string; id?: string }
-  | { type: 'add_task'; title: string; due?: string; pillar?: PillarRef }
+  | { type: 'add_task'; title: string; due?: string; time?: string; pillar?: PillarRef }
   | { type: 'complete_task'; task: string; id?: string }
   | { type: 'reopen_task'; task: string; id?: string }
-  | { type: 'edit_task'; task: string; title?: string; due?: string; id?: string }
+  | { type: 'edit_task'; task: string; title?: string; due?: string; time?: string; id?: string }
   | { type: 'delete_task'; task: string; id?: string }
   | { type: 'clear_done_tasks' }
   | { type: 'add_note'; text: string; pillar?: PillarRef }
   | { type: 'edit_note'; note: string; text: string; id?: string }
   | { type: 'delete_note'; note: string; id?: string }
   | { type: 'navigate'; page: Page; pillar?: PillarRef; section?: string }
-  | { type: 'set_theme'; theme: ThemePref };
+  | { type: 'set_theme'; theme: ThemePref }
+  | { type: 'set_reminders'; enabled?: boolean; checkin?: string };
 
 export const COMMAND_TYPES = [
   'set_name', 'set_goal', 'set_pillar', 'set_action', 'remove_action', 'check_in', 'uncheck',
   'add_task', 'complete_task', 'reopen_task', 'edit_task', 'delete_task', 'clear_done_tasks',
-  'add_note', 'edit_note', 'delete_note', 'navigate', 'set_theme',
+  'add_note', 'edit_note', 'delete_note', 'navigate', 'set_theme', 'set_reminders',
 ] as const;
 
 export interface JournalEntry {
@@ -81,6 +82,30 @@ export function resolveDate(input: string | undefined, today = ymd(), past = fal
   }
   return undefined;
 }
+
+/** "5pm", "17:30", "5:30 pm", "noon", "morning" → "HH:MM" (24h). */
+export function resolveTime(input: string | undefined): string | undefined {
+  if (!input) return undefined;
+  const s = input.trim().toLowerCase().replace(/(\d)\.(\d)/, '$1:$2').replace(/\./g, '');
+  const named: Record<string, string> = { noon: '12:00', midday: '12:00', midnight: '00:00', morning: '09:00', afternoon: '15:00', evening: '19:00', tonight: '20:00', night: '21:00' };
+  if (named[s]) return named[s];
+  const m = s.match(/^(?:at\s+)?(\d{1,2})(?:[:h](\d{2}))?\s*(am|pm|a|p)?$/);
+  if (!m) return undefined;
+  let h = Number(m[1]);
+  const min = m[2] ? Number(m[2]) : 0;
+  const ap = m[3]?.[0];
+  if (min > 59 || h > 23 || (ap && (h < 1 || h > 12))) return undefined;
+  if (!m[2] && !ap && h < 7) h += 12; // "at 5" most likely means 5pm
+  if (ap === 'p' && h < 12) h += 12;
+  if (ap === 'a' && h === 12) h = 0;
+  return `${String(h).padStart(2, '0')}:${String(min).padStart(2, '0')}`;
+}
+
+export const formatTime = (t: string | undefined) => {
+  if (!t) return undefined;
+  const [h, m] = t.split(':').map(Number);
+  return new Date(2000, 0, 1, h, m).toLocaleTimeString(undefined, { hour: 'numeric', minute: '2-digit' });
+};
 
 export class Runner {
   journal: JournalEntry[] = [];
@@ -240,9 +265,10 @@ export class Runner {
         const title = raw.charAt(0).toUpperCase() + raw.slice(1);
         if (!title) return void this.errors.push('No task given.');
         const p = await this.findPillar(c.pillar);
-        const t: Task = { id: uid(), title, due: resolveDate(c.due, this.today), done: false, pillarId: p?.id, createdAt: now, updatedAt: now };
+        const time = resolveTime(c.time);
+        const t: Task = { id: uid(), title, due: resolveDate(c.due, this.today) ?? (time ? this.today : undefined), time, done: false, pillarId: p?.id, createdAt: now, updatedAt: now };
         await this.put('tasks', t);
-        this.effects.push(`Task: “${title}”${t.due ? ` · ${formatDue(t.due, this.today)}` : ''}`);
+        this.effects.push(`Task: “${title}”${t.due ? ` · ${formatDue(t.due, this.today)}` : ''}${time ? ` ${formatTime(time)}` : ''}`);
         return;
       }
       case 'complete_task':
@@ -259,7 +285,9 @@ export class Runner {
         if (!t) return void this.errors.push(`Couldn’t find task “${c.task}”.`);
         const title = str(c.title) || t.title;
         const due = c.due !== undefined ? resolveDate(c.due, this.today) : t.due;
-        await this.put('tasks', { ...t, title, due, updatedAt: now });
+        const time = c.time !== undefined ? resolveTime(c.time) : t.time;
+        const moved = due !== t.due || time !== t.time;
+        await this.put('tasks', { ...t, title, due: due ?? (time ? this.today : undefined), time, notifiedAt: moved ? undefined : t.notifiedAt, updatedAt: now });
         this.effects.push(`Updated “${title}”`);
         return;
       }
@@ -311,6 +339,16 @@ export class Runner {
         const s = (await this.d.settings.get('settings')) ?? DEFAULT_SETTINGS;
         await this.put('settings', { ...s, theme: c.theme });
         this.effects.push(`Theme: ${c.theme}`);
+        return;
+      }
+      case 'set_reminders': {
+        const s = (await this.d.settings.get('settings')) ?? DEFAULT_SETTINGS;
+        const cur = s.reminders ?? { enabled: false };
+        const off = typeof c.checkin === 'string' && /^(off|none|no|stop|disable)$/i.test(c.checkin.trim());
+        const checkin = c.checkin === undefined ? cur.checkin : off ? undefined : resolveTime(c.checkin) ?? cur.checkin;
+        const enabled = c.enabled ?? (checkin ? true : cur.enabled);
+        await this.put('settings', { ...s, reminders: { ...cur, enabled, checkin } });
+        this.effects.push(enabled ? `Reminders on${checkin ? ` · daily check-in ${formatTime(checkin)}` : ''}` : 'Reminders off');
         return;
       }
       default: {

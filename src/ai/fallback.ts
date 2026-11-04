@@ -6,7 +6,7 @@
  * edits); (2) otherwise split into clauses and try the ordered RULES on each;
  * (3) if nothing matched, save the message as a note.
  */
-import type { Command, PillarRef } from '../lib/commands';
+import { resolveTime, type Command, type PillarRef } from '../lib/commands';
 import type { Page, ThemePref } from '../lib/types';
 import { bestMatch, normalize, similarity } from '../lib/util';
 import { findHelp, HELP } from '../lib/help';
@@ -378,6 +378,26 @@ const setTheme: Rule = {
   },
 };
 
+const setReminders: Rule = {
+  name: 'set_reminders',
+  whole: true,
+  run: (s) => {
+    const t = s.toLowerCase();
+    if (!/\b(?:reminders?|remind|notifications?|notify|nudge)\b/.test(t) && !/\b(?:daily|every \w+|evening|night)\s+check[- ]?in\b/.test(t)) return null; // "check in with my boss" is not about reminders
+    if (/^remind me (?:to|about)\b/.test(t)) return null; // that's a task
+    const off = /\b(?:turn off|disable|stop|no more|mute|don'?t)\b/.test(t);
+    const tm = t.match(/\b(?:at|for)\s+(\d{1,2}(?::\d{2})?\s*(?:am|pm)?|noon|evening|morning|night)\b/);
+    const daily = /\b(?:daily|every (?:day|night|evening|morning)|check[- ]?in|nudge)\b/.test(t);
+    if (daily) {
+      if (off) return [{ type: 'set_reminders', checkin: 'off' }];
+      const time = tm ? resolveTime(tm[1]) : '21:00';
+      return time ? [{ type: 'set_reminders', enabled: true, checkin: time }] : null;
+    }
+    if (!/\b(?:turn on|enable|start|switch on|turn off|disable|stop|switch off|mute|on|off)\b/.test(t)) return null;
+    return [{ type: 'set_reminders', enabled: !off && !/\boff\b/.test(t) }];
+  },
+};
+
 const setName: Rule = {
   name: 'set_name',
   run: (s) => {
@@ -462,7 +482,7 @@ const uncheck: Rule = {
       const hit = bestAction(neg[1], ctx, 0.5, true);
       return hit ? [{ type: 'uncheck', action: hit.action.title, ...dt }] : null;
     }
-    const u = rest.match(/^(?:unlog|un-log|uncheck|un-check|untick|unmark|take back|undo)\s+(?:the\s+|my\s+)?(?:check-?in\s+(?:for|of)\s+)?(.+)$/i);
+    const u = rest.match(/^(?:unlog|un-log|uncheck|un-check|untick|unmark|take back|undo)\s+(?:the\s+|my\s+)?(?:check[- ]?in\s+(?:for|of)\s+)?(.+)$/i);
     if (u) {
       const hit = bestAction(u[1], ctx, 0.45, true);
       return hit ? [{ type: 'uncheck', action: hit.action.title, ...dt }] : null;
@@ -654,7 +674,7 @@ const helpRule: Rule = {
 
 /** Ordered: first rule that returns commands wins for a clause. */
 const RULES: Rule[] = [
-  helpRule, editNote, deleteNote, noteRule, setGoal, setPillar, setAction, removeAction, clearDone, setTheme, setName,
+  helpRule, editNote, deleteNote, noteRule, setGoal, setPillar, setAction, removeAction, clearDone, setReminders, setTheme, setName,
   question, navigate, editTask, reopenTask, uncheck, completeTask, pastTask, deleteTask, addTask, checkIn,
 ];
 
@@ -696,7 +716,7 @@ function describe(c: Command): string {
     case 'remove_action': return `removed "${c.action}"`;
     case 'check_in': return `logged "${c.action}"${c.date ? ` for ${c.date}` : ''}`;
     case 'uncheck': return `unlogged "${c.action}"${c.date ? ` for ${c.date}` : ''}`;
-    case 'add_task': return `added the task "${c.title}"${c.due ? ` for ${c.due}` : ''}`;
+    case 'add_task': return `added the task "${c.title}"${c.due ? ` for ${c.due}` : ''}${c.time ? ` at ${c.time}` : ''}`;
     case 'complete_task': return `marked "${c.task}" as done`;
     case 'reopen_task': return `reopened "${c.task}"`;
     case 'edit_task': return c.title ? `renamed "${c.task}" to "${c.title}"` : `moved "${c.task}" to ${c.due}`;
@@ -707,7 +727,22 @@ function describe(c: Command): string {
     case 'delete_note': return 'deleted that note';
     case 'navigate': return c.pillar ? `opening ${c.pillar} on your chart` : `opening ${c.page}`;
     case 'set_theme': return c.theme === 'system' ? 'switched to the system theme' : `switched to ${c.theme} mode`;
+    case 'set_reminders': return c.enabled === false ? 'turned reminders off' : c.checkin && c.checkin !== 'off' ? `set a daily check-in at ${c.checkin}` : c.checkin === 'off' ? 'turned off the daily check-in' : 'turned reminders on';
   }
+}
+
+/** Pull "at 5pm" / "at 17:30" / "5:30pm" out of a task title into its own field. */
+const TIME_RE = /\s*(?:\b(?:at|by|@|around)\s+)?\b(\d{1,2}(?::\d{2})?\s*(?:am|pm|a\.m\.|p\.m\.)|(?:at|by|@|around)\s+\d{1,2}(?::\d{2})?|noon|midday)\b/i;
+function withTime(cmds: Command[]): Command[] {
+  return cmds.map((c) => {
+    if (c.type !== 'add_task' || c.time) return c;
+    const m = c.title.match(TIME_RE);
+    if (!m) return c;
+    const time = resolveTime(m[1].replace(/^(?:at|by|@|around)\s+/i, ''));
+    if (!time) return c;
+    const title = (c.title.slice(0, m.index) + c.title.slice((m.index ?? 0) + m[0].length)).replace(/\s{2,}/g, ' ').trim();
+    return title ? { ...c, title, time } : c;
+  });
 }
 
 function replyFor(cmds: Command[]): string {
@@ -744,7 +779,7 @@ export function parseFallback(text: string, ctx: FallbackContext): FallbackResul
   for (const rule of RULES) {
     if (!rule.whole) continue;
     const cmds = rule.run(whole, safe, raw);
-    if (cmds?.length) return { reply: replyFor(cmds), commands: cmds };
+    if (cmds?.length) { const out = withTime(cmds); return { reply: replyFor(out), commands: out }; }
   }
 
   // 2) clause by clause
@@ -808,7 +843,8 @@ export function parseFallback(text: string, ctx: FallbackContext): FallbackResul
 
   if (commands.length) {
     if (questionOnly && commands.length === 1) return { reply: questionReply(commands[0]), commands };
-    return { reply: replyFor(commands), commands };
+    const out = withTime(commands);
+    return { reply: replyFor(out), commands: out };
   }
 
   // 3) nothing matched: keep the words as a note

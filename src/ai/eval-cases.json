@@ -1278,5 +1278,62 @@
     "tags": [
       "nav"
     ]
+  },
+  {
+    "id": "time-01",
+    "message": "remind me to call mom at 5pm",
+    "expect": [
+      {
+        "type": "add_task",
+        "title": "call mom",
+        "time": "17:00"
+      }
+    ],
+    "tags": [
+      "task",
+      "time"
+    ]
+  },
+  {
+    "id": "time-02",
+    "message": "dentist tomorrow at 9:30am",
+    "expect": [
+      {
+        "type": "add_task",
+        "title": "dentist",
+        "due": "tomorrow",
+        "time": "09:30"
+      }
+    ],
+    "tags": [
+      "task",
+      "time"
+    ]
+  },
+  {
+    "id": "rem-01",
+    "message": "turn on reminders",
+    "expect": [
+      {
+        "type": "set_reminders",
+        "enabled": "true"
+      }
+    ],
+    "tags": [
+      "settings"
+    ]
+  },
+  {
+    "id": "rem-02",
+    "message": "nudge me every evening at 9pm to check in",
+    "expect": [
+      {
+        "type": "set_reminders",
+        "checkin": "21:00"
+      }
+    ],
+    "tags": [
+      "settings"
+    ]
   }
 ]

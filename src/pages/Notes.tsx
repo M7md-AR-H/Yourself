@@ -66,6 +66,7 @@ export function Notes({ onEdit }: { onEdit: (t: EditorTarget) => void }) {
         groups.map((g) => (
           <section key={g.label} className="stack" aria-label={g.label}>
             <h2 className="day-label">{g.label}</h2>
+            <div className="note-grid">
             {g.items.map((n) => (
               <button key={n.id} className="note glass" onClick={() => onEdit({ kind: 'note', note: n })}>
                 <p>{n.text}</p>
@@ -76,6 +77,7 @@ export function Notes({ onEdit }: { onEdit: (t: EditorTarget) => void }) {
                 </div>
               </button>
             ))}
+            </div>
           </section>
         ))
       )}

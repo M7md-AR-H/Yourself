@@ -38,6 +38,10 @@ export interface Task {
   id: ID;
   title: string;
   due?: string; // YYYY-MM-DD
+  /** Optional time of day, HH:MM (24h). A reminder fires at due+time. */
+  time?: string;
+  /** When the reminder for this task was shown (so it fires once). */
+  notifiedAt?: number;
   done: boolean;
   doneAt?: number;
   pillarId?: ID;
@@ -75,6 +79,16 @@ export interface Settings {
   /** User opted in to download + run the local model. */
   aiEnabled: boolean;
   onboarded: boolean;
+  reminders?: Reminders;
+}
+
+export interface Reminders {
+  /** Notify at each task's time. */
+  enabled: boolean;
+  /** Daily check-in nudge time, HH:MM; undefined = off. */
+  checkin?: string;
+  /** Last day (YYYY-MM-DD) the check-in nudge was shown. */
+  lastCheckin?: string;
 }
 
 export type Page = 'today' | 'chart' | 'review' | 'notes' | 'chat' | 'settings' | 'help';

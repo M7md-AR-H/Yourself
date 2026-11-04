@@ -7,6 +7,7 @@ import { navigate, useChart, useRoute } from '../lib/hooks';
 import { pct, type ActionStat, type ChartStats, type PillarStat } from '../lib/stats';
 import type { Goal } from '../lib/types';
 import { Ring } from '../ui/Ring';
+import { MOD, useWide } from '../ui/Desktop';
 import { Sheet } from '../ui/Sheet';
 import { useToast } from '../ui/Toaster';
 import { starterCommands } from '../lib/seed';
@@ -37,27 +38,43 @@ export function Chart() {
   const route = useRoute();
   const [edit, setEdit] = useState<EditState | null>(null);
   const sel = route.params.get('pillar');
+  const wide = useWide();
 
   if (!stats || !data) return <div className="skel" style={{ aspectRatio: '1', borderRadius: 24 }} aria-busy="true" aria-label="Loading chart" />;
 
   const pillarSlot = sel && /^[1-8]$/.test(sel) ? Number(sel) - 1 : sel === 'goal' ? -1 : null;
   const empty = !stats.pillars.some(Boolean) && !data.goal?.title;
 
+  const detail = pillarSlot === -1
+    ? <CenterDetail stats={stats} goal={data.goal} onEdit={setEdit} split={wide} />
+    : pillarSlot !== null ? <PillarDetail slot={pillarSlot} p={stats.pillars[pillarSlot]} onEdit={setEdit} split={wide} /> : null;
+
+  if (wide) {
+    // Laptop: chart and the open block side by side (no zoom animation: both are on screen).
+    return (
+      <div className="chart-split">
+        <div className="stack-lg"><Overview stats={stats} goal={data.goal} empty={empty} split selected={pillarSlot} /></div>
+        <div className="stack-lg chart-detail">
+          {detail ?? (
+            <div className="glass card empty" style={{ marginTop: 8 }}>
+              Pick a block on the left to see its 8 actions.<br />Shortcut: <span className="kbd">{MOD} K</span> → “Open Sleep”.
+            </div>
+          )}
+        </div>
+        <EditCell state={edit} onClose={() => setEdit(null)} />
+      </div>
+    );
+  }
+
   return (
     <div className="stack-lg">
-      {pillarSlot === null ? (
-        <Overview stats={stats} goal={data.goal} empty={empty} />
-      ) : pillarSlot === -1 ? (
-        <CenterDetail stats={stats} goal={data.goal} onEdit={setEdit} />
-      ) : (
-        <PillarDetail slot={pillarSlot} p={stats.pillars[pillarSlot]} onEdit={setEdit} />
-      )}
+      {detail ?? <Overview stats={stats} goal={data.goal} empty={empty} />}
       <EditCell state={edit} onClose={() => setEdit(null)} />
     </div>
   );
 }
 
-function Overview({ stats, goal, empty }: { stats: ChartStats; goal?: Goal; empty: boolean }) {
+function Overview({ stats, goal, empty, split = false, selected = null }: { stats: ChartStats; goal?: Goal; empty: boolean; split?: boolean; selected?: number | null }) {
   const { exec } = useToast();
   const reduce = useReducedMotion();
   const enter = (i: number) => (reduce ? {} : { initial: { opacity: 0, scale: 0.94 }, animate: { opacity: 1, scale: 1 }, transition: { ...spring, delay: 0.03 * i } });
@@ -78,7 +95,7 @@ function Overview({ stats, goal, empty }: { stats: ChartStats; goal?: Goal; empt
         {Array.from({ length: 9 }, (_, pos) => {
           if (pos === 4) {
             return (
-              <motion.button key="c" layoutId="block-goal" {...enter(4)} whileTap={{ scale: 0.97 }} className="block block-center" onClick={() => navigate('chart', { pillar: 'goal' }, false)} aria-label={`Main goal: ${goal?.title || 'not set'}. Overall ${pct(stats.overall)}. Edit centre`}>
+              <motion.button key="c" layoutId={split ? undefined : 'block-goal'} {...enter(4)} whileTap={{ scale: 0.97 }} aria-current={selected === -1 ? 'true' : undefined} className="block block-center" onClick={() => navigate('chart', { pillar: 'goal' }, false)} aria-label={`Main goal: ${goal?.title || 'not set'}. Overall ${pct(stats.overall)}. Edit centre`}>
                 {Array.from({ length: 9 }, (_, c) => {
                   if (c === 4) return <span key={c} className="cell goal" lang="en" style={fitGoal(goal?.title || 'Your goal')}>{hyph(goal?.title || 'Your goal')}</span>;
                   const p = stats.pillars[RING.indexOf(c)];
@@ -90,7 +107,7 @@ function Overview({ stats, goal, empty }: { stats: ChartStats; goal?: Goal; empt
           const slot = RING.indexOf(pos);
           const p = stats.pillars[slot];
           return (
-            <motion.button key={pos} layoutId={`block-${slot}`} {...enter(pos)} whileTap={{ scale: 0.97 }} className="block" onClick={() => navigate('chart', { pillar: slot + 1 }, false)}
+            <motion.button key={pos} layoutId={split ? undefined : `block-${slot}`} {...enter(pos)} whileTap={{ scale: 0.97 }} aria-current={selected === slot ? 'true' : undefined} className="block" onClick={() => navigate('chart', { pillar: slot + 1 }, false)}
               aria-label={p ? `${p.pillar.title}: ${pct(p.score)} this week. Open` : `Empty pillar ${slot + 1}. Open`}>
               {Array.from({ length: 9 }, (_, c) => {
                 if (c === 4) {
@@ -153,7 +170,7 @@ function BackHeader({ title, sub, value }: { title: string; sub?: string; value?
   );
 }
 
-function PillarDetail({ slot, p, onEdit }: { slot: number; p?: PillarStat; onEdit: (e: EditState) => void }) {
+function PillarDetail({ slot, p, onEdit, split = false }: { slot: number; p?: PillarStat; onEdit: (e: EditState) => void; split?: boolean }) {
   const { exec } = useToast();
   const pid = p?.pillar.id ?? '';
   const tasks = useLiveQuery(() => db.tasks.where('pillarId').equals(pid).filter((t) => !t.done).toArray(), [pid]) ?? [];
@@ -163,7 +180,7 @@ function PillarDetail({ slot, p, onEdit }: { slot: number; p?: PillarStat; onEdi
   return (
     <>
       <BackHeader title={p?.pillar.title ?? `Pillar ${slot + 1}`} sub={p ? `${p.actions.filter((a) => a?.doneToday).length} done today · last 7 days` : 'Not set yet'} value={p?.score} />
-      <motion.div layoutId={`block-${slot}`} transition={spring} className="detail-grid">
+      <motion.div layoutId={split ? undefined : `block-${slot}`} transition={spring} className="detail-grid">
         {Array.from({ length: 9 }, (_, pos) => {
           if (pos === 4) {
             return (
@@ -224,11 +241,11 @@ function PillarDetail({ slot, p, onEdit }: { slot: number; p?: PillarStat; onEdi
   );
 }
 
-function CenterDetail({ stats, goal, onEdit }: { stats: ChartStats; goal?: Goal; onEdit: (e: EditState) => void }) {
+function CenterDetail({ stats, goal, onEdit, split = false }: { stats: ChartStats; goal?: Goal; onEdit: (e: EditState) => void; split?: boolean }) {
   return (
     <>
       <BackHeader title="The centre" sub="Your goal and its 8 pillars" value={stats.overall} />
-      <motion.div layoutId="block-goal" transition={spring} className="detail-grid">
+      <motion.div layoutId={split ? undefined : 'block-goal'} transition={spring} className="detail-grid">
         {Array.from({ length: 9 }, (_, pos) => {
           if (pos === 4) {
             return (

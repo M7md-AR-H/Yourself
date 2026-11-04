@@ -1,5 +1,6 @@
 import { motion } from 'framer-motion';
-import { ArrowUp, Mic, Plus, Settings as SettingsIcon, Sparkles, Square } from 'lucide-react';
+import { ArrowUp, Command, Mic, Plus, Settings as SettingsIcon, Sparkles, Square } from 'lucide-react';
+import { IS_MAC, MOD } from './Desktop';
 import { useState, type FormEvent } from 'react';
 import { navigate, useEngine, type Route } from '../lib/hooks';
 import type { Page, Settings } from '../lib/types';
@@ -16,7 +17,7 @@ const TABS: { page: Page; label: string }[] = [
 
 const PLACEHOLDERS = ['I slept 8 hours and meditated…', 'Remind me to call mom tomorrow…', 'Note: felt calm after the walk…', 'Show my sleep block…'];
 
-export function TopBar({ settings, route }: { settings: Settings; route: Route }) {
+export function TopBar({ settings, route, onMenu }: { settings: Settings; route: Route; onMenu?: () => void }) {
   const [text, setText] = useState('');
   const { send, busy } = useAssistant();
   const status = useEngine();
@@ -42,6 +43,7 @@ export function TopBar({ settings, route }: { settings: Settings; route: Route }
       <button className="avatar" aria-label={`Welcome, ${settings.name || 'you'}. Open settings`} onClick={() => navigate('settings')}>
         {initial}
       </button>
+      <span className="welcome">Welcome, {settings.name || 'you'}</span>
       {route.page === 'chat' ? (
         <div className="grow" style={{ flex: 1, minWidth: 0 }}>
           <div style={{ fontWeight: 700, fontSize: 15 }}>Assistant</div>
@@ -68,7 +70,10 @@ export function TopBar({ settings, route }: { settings: Settings; route: Route }
           {busy && <span className="typing" aria-label="Thinking…"><i /><i /><i /></span>}
         </form>
       )}
-      <button className="icon-btn" aria-label="Settings" onClick={() => navigate('settings')}>
+      <button className="kbd-hint" onClick={onMenu} aria-label={`Command menu (${MOD} K)`} aria-keyshortcuts={IS_MAC ? 'Meta+K' : 'Control+K'}>
+        {IS_MAC && <Command size={14} aria-hidden />}<span className="kbd">{IS_MAC ? 'K' : 'Ctrl K'}</span>
+      </button>
+      <button className="icon-btn topbar-settings" aria-label="Settings" onClick={() => navigate('settings')}>
         <SettingsIcon size={18} />
       </button>
     </header>

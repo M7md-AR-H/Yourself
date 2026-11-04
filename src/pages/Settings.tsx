@@ -8,6 +8,7 @@ import type { ModelId, Settings as S, ThemePref } from '../lib/types';
 import { ymd } from '../lib/util';
 import { useToast } from '../ui/Toaster';
 import { EvalPanel } from '../ui/EvalPanel';
+import { RemindersPanel } from '../ui/RemindersPanel';
 
 export function Settings({ settings }: { settings: S }) {
   const { toast, exec } = useToast();
@@ -139,6 +140,8 @@ export function Settings({ settings }: { settings: S }) {
           </div>
         )}
       </section>
+
+      <RemindersPanel settings={settings} />
 
       <section className="glass card stack" aria-labelledby="s-data">
         <h2 className="section-title" id="s-data">Your data</h2>

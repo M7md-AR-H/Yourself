@@ -85,7 +85,7 @@ export function Review() {
   };
 
   return (
-    <div className="stack-lg">
+    <div className="stack-lg review-layout">
       <div>
         <h1 className="display h-hero">Your {range.id === 'month' ? 'month' : 'week'}</h1>
         <p className="subtitle tnum">{fmtDay(from, { day: 'numeric', month: 'short' })} – {fmtDay(end, { day: 'numeric', month: 'short' })}</p>
@@ -97,7 +97,7 @@ export function Review() {
         ))}
       </div>
 
-      <section className="glass card" aria-labelledby="rv-score">
+      <section className="glass card r-score" aria-labelledby="rv-score">
         <div className="between">
           <span className="label" id="rv-score">Overall · {data.goal?.title || 'your goal'}</span>
           <Delta now={cur.overall} before={prev.overall} />
@@ -110,7 +110,7 @@ export function Review() {
         </div>
       </section>
 
-      <section className="glass card stack" aria-labelledby="rv-days">
+      <section className="glass card stack r-days" aria-labelledby="rv-days">
         <div className="between">
           <h2 className="section-title" id="rv-days">Actions per day</h2>
           <span className="label tnum">{sel ? `${fmtDay(sel.d, { weekday: 'short', day: 'numeric' })}: ${sel.n}` : `Most: ${max === 1 && !perDay.some((x) => x.n) ? 0 : max}`}</span>
@@ -130,7 +130,7 @@ export function Review() {
         )}
       </section>
 
-      <section className="glass card stack" aria-labelledby="rv-pillars">
+      <section className="glass card stack r-pillars" aria-labelledby="rv-pillars">
         <h2 className="section-title" id="rv-pillars">Pillars</h2>
         {pillars.length === 0 ? <p className="empty">No pillars yet.</p> : (
           <div className="list">
@@ -146,7 +146,7 @@ export function Review() {
         )}
       </section>
 
-      <div className="bento">
+      <div className="bento r-tiles">
         <section className="glass tile" aria-labelledby="rv-top" style={{ justifyContent: 'flex-start' }}>
           <h2 className="label" id="rv-top">Going well</h2>
           {top.length ? top.map(({ a }) => (
@@ -173,7 +173,7 @@ export function Review() {
         </section>
       </div>
 
-      <section className="glass card stack" aria-labelledby="rv-ref">
+      <section className="glass card stack r-ref" aria-labelledby="rv-ref">
         <div className="between">
           <h2 className="section-title" id="rv-ref">Reflection</h2>
           <button className="btn btn-solid" style={{ height: 40 }} onClick={reflect} disabled={thinking}>

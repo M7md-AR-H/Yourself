@@ -14,9 +14,10 @@ export default defineConfig({
     launchOptions: process.env.PW_CHROMIUM ? { executablePath: process.env.PW_CHROMIUM } : {},
   },
   projects: [
-    { name: 'poco-f5-light', use: { colorScheme: 'light' } },
-    { name: 'poco-f5-dark', use: { colorScheme: 'dark' } },
-    { name: 'small-360', use: { viewport: { width: 360, height: 740 } } },
+    { name: 'poco-f5-light', testIgnore: /laptop\.spec\.ts/, use: { colorScheme: 'light' } },
+    { name: 'poco-f5-dark', testIgnore: /laptop\.spec\.ts/, use: { colorScheme: 'dark' } },
+    { name: 'small-360', testIgnore: /laptop\.spec\.ts/, use: { viewport: { width: 360, height: 740 } } },
+    { name: 'laptop', testMatch: /laptop\.spec\.ts/, use: { viewport: { width: 1440, height: 900 }, deviceScaleFactor: 1, isMobile: false, hasTouch: false } },
   ],
   webServer: { command: 'npm run build && npx vite preview --port 4173 --strictPort', port: 4173, reuseExistingServer: !process.env.CI, timeout: 120_000 },
 });

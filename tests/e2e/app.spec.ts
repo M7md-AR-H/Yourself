@@ -107,3 +107,13 @@ test('chart: done-today shows as an outline, ring per pillar strip', async ({ pa
   await expect(page.locator('.cell.today')).toHaveCount(1);
   await expect(page.getByRole('group', { name: 'Pillars' }).getByRole('button')).toHaveCount(8);
 });
+
+test('task with a time shows it, and reminders can be turned on', async ({ page, context }) => {
+  await context.grantPermissions(['notifications']);
+  await onboard(page);
+  await say(page, 'remind me to call mom at 5pm');
+  await expect(page.getByText(/Today · 5:00\s?PM/i)).toBeVisible();
+  await page.goto('/#/settings');
+  await page.getByRole('button', { name: 'Turn on reminders' }).click();
+  await expect(page.getByLabel('Daily check-in')).toBeVisible();
+});

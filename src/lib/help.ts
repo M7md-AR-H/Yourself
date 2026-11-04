@@ -89,6 +89,19 @@ export const HELP: HelpSection[] = [
     keywords: ['review', 'week', 'weekly', 'trend', 'progress', 'reflection', 'summary', 'stats'],
   },
   {
+    id: 'reminders',
+    title: 'Reminders and notifications',
+    summary: 'Settings → Reminders → Turn on reminders (allow notifications). Give tasks a time (“call mom at 5pm”) to be notified; set a daily check-in time for a nudge. Works while the app is open or in the background.',
+    steps: [
+      'Settings → Reminders → “Turn on reminders”, then allow notifications when Chrome asks.',
+      'Give a task a time: say “remind me to call mom at 5pm”, or set a time when editing the task.',
+      'Optional: pick a daily check-in time to get a “How did today go?” nudge.',
+      'Reminders show while the app is open or running in the background. With the app installed, you also get a once-a-day summary of today’s tasks, even when it’s closed.',
+      'Blocked by mistake? Chrome menu (⋮) → Settings → Site settings → Notifications → allow this app.',
+    ],
+    keywords: ['reminder', 'reminders', 'notification', 'notifications', 'notify', 'alarm', 'alert', 'check-in', 'checkin', 'nudge', 'time'],
+  },
+  {
     id: 'backup',
     title: 'Backup and moving to another device',
     summary: 'Everything is stored only on this phone. Settings → Your data → Export backup saves a file; Import… on the other device restores it.',

@@ -21,10 +21,12 @@ export function EditorSheet({ target, onClose }: { target: EditorTarget | null; 
   const [text, setText] = useState('');
   const [pillarId, setPillarId] = useState('');
   const [due, setDue] = useState<string>('');
+  const [time, setTime] = useState<string>('');
   const today = ymd();
 
   useEffect(() => {
     if (!target) return;
+    setTime(target.kind === 'task' ? target.task.time ?? '' : '');
     if (target.kind === 'new') { setMode(target.mode ?? 'note'); setText(''); setPillarId(''); setDue(''); }
     if (target.kind === 'note') { setMode('note'); setText(target.note.text); setPillarId(target.note.pillarId ?? ''); setDue(''); }
     if (target.kind === 'task') { setMode('task'); setText(target.task.title); setPillarId(target.task.pillarId ?? ''); setDue(target.task.due ?? ''); }
@@ -43,7 +45,8 @@ export function EditorSheet({ target, onClose }: { target: EditorTarget | null; 
       toast({ title: 'Note updated', journal: [{ table: 'notes', key: before.id, before }] });
     } else if (target?.kind === 'task') {
       const before = target.task;
-      await db.tasks.put({ ...before, title: value, pillarId: pillarId || undefined, due: due || undefined, updatedAt: now });
+      const moved = (due || undefined) !== before.due || (time || undefined) !== before.time;
+      await db.tasks.put({ ...before, title: value, pillarId: pillarId || undefined, due: due || (time ? today : undefined), time: time || undefined, notifiedAt: moved ? undefined : before.notifiedAt, updatedAt: now });
       toast({ title: 'Task updated', journal: [{ table: 'tasks', key: before.id, before }] });
     } else if (mode === 'note') {
       const id = uid();
@@ -51,7 +54,7 @@ export function EditorSheet({ target, onClose }: { target: EditorTarget | null; 
       toast({ title: 'Note saved', journal: [{ table: 'notes', key: id, before: undefined }] });
     } else {
       const id = uid();
-      await db.tasks.put({ id, title: value, pillarId: pillarId || undefined, due: due || undefined, done: false, createdAt: now, updatedAt: now });
+      await db.tasks.put({ id, title: value, pillarId: pillarId || undefined, due: due || (time ? today : undefined), time: time || undefined, done: false, createdAt: now, updatedAt: now });
       toast({ title: 'Task added', journal: [{ table: 'tasks', key: id, before: undefined }] });
     }
     onClose();
@@ -98,6 +101,15 @@ export function EditorSheet({ target, onClose }: { target: EditorTarget | null; 
                 <button type="button" key={l} className="filter" aria-pressed={due === v} onClick={() => setDue(v)}>{l}</button>
               ))}
               <input type="date" aria-label="Pick a date" className="filter" value={due} onChange={(e) => setDue(e.target.value)} />
+            </div>
+          </div>
+        )}
+        {mode === 'task' && (
+          <div className="field">
+            <label htmlFor="ed-time">Time (optional, for a reminder)</label>
+            <div className="row">
+              <input id="ed-time" type="time" className="input" value={time} onChange={(e) => setTime(e.target.value)} />
+              {time && <button type="button" className="btn btn-light" onClick={() => setTime('')}>Clear</button>}
             </div>
           </div>
         )}

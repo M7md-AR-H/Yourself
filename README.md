@@ -75,15 +75,20 @@ Part A (no phone needed, session 2):
 - [x] Deploy via `gh-pages` branch (owner asked Claude to deploy)
 - [x] Code review (Sonnet): 12 medium/low findings fixed, no high-severity issues
 
-Part B (needs phone feedback):
-- [ ] Fix whatever the phone test finds (performance, keyboard, model memory)
-- [ ] Tune the prompt using measured Gemma eval results
-- [ ] Reminders/notifications for due tasks
+Part B:
+- [ ] Task times: `time` on add_task/edit_task ("at 5pm"), shown on Today, parsed offline too
+- [ ] Reminders: notification at a task's time while the app is running (in or out of focus)
+- [ ] Daily check-in reminder at a chosen time + daily "tasks due" summary via Periodic Background Sync (installed app)
+- [ ] Settings → Reminders (permission, on/off, time); `set_reminders` command for the AI
+- [ ] Waits on phone test: fix phone findings; tune prompt from measured Gemma eval
 
 ### Phase 3 — Laptop
-- [ ] Wider layout: left icon rail, bento dashboard, chart + detail side by side
-- [ ] ⌘K command menu with shortcut hints
-- [ ] Sync between phone and laptop (needs a decision: file sync vs. a small backend)
+- [ ] ≥ 900 px layout: floating left icon rail with tooltips (replaces bottom tabs), wider top bar
+- [ ] Today as a bento grid; Notes in two columns
+- [ ] Chart overview + block detail side by side
+- [ ] ⌘K / Ctrl+K command menu (pages, actions, "ask the assistant") with shortcut hints
+- [ ] Keyboard shortcuts (g t / g c / g n …, n = new note, / = focus assistant)
+- [ ] Waits on owner decision: sync between phone and laptop (see HANDOFF open questions)
 
 ## Decision log
 

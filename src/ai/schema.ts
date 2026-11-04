@@ -24,6 +24,9 @@ export const RESPONSE_SCHEMA = {
           theme: { type: 'string', enum: ['system', 'light', 'dark'] },
           name: { type: 'string' },
           section: { type: 'string' },
+          time: { type: 'string' },
+          checkin: { type: 'string' },
+          enabled: { type: 'boolean' },
         },
         required: ['type'],
       },
@@ -107,11 +110,16 @@ export function sanitizeCommand(item: unknown): Command | null {
     case 'remove_action': { const action = s(o.action ?? o.title, 60); return action ? { type: 'remove_action', action, pillar } : null; }
     case 'check_in':
     case 'uncheck': { const action = s(o.action ?? o.title, 60); return action ? { type: o.type, action, date: s(o.date, 20) } : null; }
-    case 'add_task': { const title = s(o.title ?? o.task ?? o.text, 140); return title ? { type: 'add_task', title, due: s(o.due ?? o.date, 20), pillar } : null; }
+    case 'add_task': { const title = s(o.title ?? o.task ?? o.text, 140); return title ? { type: 'add_task', title, due: s(o.due ?? o.date, 20), time: s(o.time, 12), pillar } : null; }
     case 'complete_task':
     case 'reopen_task':
     case 'delete_task': { const task = s(o.task ?? o.title, 140); return task ? { type: o.type, task } : null; }
-    case 'edit_task': { const task = s(o.task, 140); return task ? { type: 'edit_task', task, title: s(o.title, 140), due: s(o.due, 20) } : null; }
+    case 'edit_task': { const task = s(o.task, 140); return task ? { type: 'edit_task', task, title: s(o.title, 140), due: s(o.due, 20), time: s(o.time, 12) } : null; }
+    case 'set_reminders': {
+      const enabled = typeof o.enabled === 'boolean' ? o.enabled : o.enabled === 'true' ? true : o.enabled === 'false' ? false : undefined;
+      const checkin = s(o.checkin ?? o.time, 12);
+      return enabled !== undefined || checkin ? { type: 'set_reminders', enabled, checkin } : null;
+    }
     case 'clear_done_tasks': return { type: 'clear_done_tasks' };
     case 'add_note': { const text = s(o.text ?? o.note ?? o.title, 4000); return text ? { type: 'add_note', text, pillar } : null; }
     case 'edit_note': { const note = s(o.note, 200); const text = s(o.text, 4000); return note && text ? { type: 'edit_note', note, text } : null; }

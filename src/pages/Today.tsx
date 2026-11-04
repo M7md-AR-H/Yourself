@@ -6,6 +6,7 @@ import { navigate, useChart } from '../lib/hooks';
 import { pct, type ActionStat } from '../lib/stats';
 import type { Settings, Task } from '../lib/types';
 import { formatDue, greeting } from '../lib/util';
+import { formatTime } from '../lib/commands';
 import { useToast } from '../ui/Toaster';
 import type { EditorTarget } from '../ui/EditorSheet';
 
@@ -19,7 +20,7 @@ export function Today({ settings, onEdit }: { settings: Settings; onEdit: (t: Ed
   if (!stats || !tasks || !data) return <TodaySkeleton />;
 
   const open = tasks.filter((t) => !t.done);
-  const dueNow = open.filter((t) => !t.due || t.due <= today).sort((a, b) => (a.due ?? '9').localeCompare(b.due ?? '9'));
+  const dueNow = open.filter((t) => !t.due || t.due <= today).sort((a, b) => (a.due ?? '9').localeCompare(b.due ?? '9') || (a.time ?? '99').localeCompare(b.time ?? '99'));
   const upcoming = open.filter((t) => t.due && t.due > today).sort((a, b) => a.due!.localeCompare(b.due!));
   const doneToday = tasks.filter((t) => t.done && t.doneAt && new Date(t.doneAt).toDateString() === new Date().toDateString());
 
@@ -41,13 +42,13 @@ export function Today({ settings, onEdit }: { settings: Settings; onEdit: (t: Ed
   const toggleAction = (a: ActionStat) => exec([{ type: a.doneToday ? 'uncheck' : 'check_in', action: a.action.title, id: a.action.id }]);
 
   return (
-    <div className="stack-lg">
-      <div>
+    <div className="stack-lg today-layout">
+      <div className="t-head">
         <h1 className="display h-hero">{greeting()}{settings.name ? `, ${settings.name}` : ''}</h1>
         <p className="subtitle">{data.goal?.title ? <>Working towards <strong>{data.goal.title}</strong>.</> : 'Set your main goal in the chart.'} Tell the assistant what you did or will do.</p>
       </div>
 
-      <motion.section className="glass card hero-card" {...lift} aria-labelledby="wk">
+      <motion.section className="glass card hero-card t-hero" {...lift} aria-labelledby="wk">
         <div className="between">
           <span className="label" id="wk">This week · {data.goal?.title || 'overall'}</span>
           {stats.checkinsLastWeek > 0 || stats.checkinsThisWeek > 0 ? (
@@ -65,7 +66,7 @@ export function Today({ settings, onEdit }: { settings: Settings; onEdit: (t: Ed
         </div>
       </motion.section>
 
-      <section className="bento" aria-label="Stats">
+      <section className="bento t-tiles" aria-label="Stats">
         <motion.div className="glass tile accent" {...lift}>
           <div className="between"><span className="label">Logged today</span><span className="ico"><CheckCircle2 size={16} /></span></div>
           <div className="tile-value">{loggedToday}<span style={{ fontSize: 15, fontWeight: 600 }}> / {allActions.length}</span></div>
@@ -84,7 +85,7 @@ export function Today({ settings, onEdit }: { settings: Settings; onEdit: (t: Ed
         </motion.div>
       </section>
 
-      <section className="glass card" aria-labelledby="sugg">
+      <section className="glass card t-sugg" aria-labelledby="sugg">
         <div className="between" style={{ marginBottom: 12 }}>
           <h2 className="section-title" id="sugg">Small actions for today</h2>
         </div>
@@ -101,7 +102,7 @@ export function Today({ settings, onEdit }: { settings: Settings; onEdit: (t: Ed
         )}
       </section>
 
-      <section className="glass card" aria-labelledby="tasks">
+      <section className="glass card t-tasks" aria-labelledby="tasks">
         <div className="between" style={{ marginBottom: 4 }}>
           <h2 className="section-title" id="tasks">Tasks</h2>
           <button className="btn btn-ghost" style={{ height: 36, padding: '0 8px' }} onClick={() => onEdit({ kind: 'new', mode: 'task' })}>Add…</button>
@@ -117,7 +118,7 @@ export function Today({ settings, onEdit }: { settings: Settings; onEdit: (t: Ed
                 </button>
                 <button className="grow" style={{ background: 'none', border: 0, textAlign: 'left', padding: 0, minHeight: 44 }} onClick={() => onEdit({ kind: 'task', task: t })}>
                   <div className={t.done ? 'done-text' : ''}>{t.title}</div>
-                  {t.due && <div className="meta" style={{ color: !t.done && t.due < today ? 'var(--danger)' : undefined }}>{formatDue(t.due, today)}</div>}
+                  {t.due && <div className="meta tnum" style={{ color: !t.done && t.due < today ? 'var(--danger)' : undefined }}>{formatDue(t.due, today)}{t.time ? ` · ${formatTime(t.time)}` : ''}</div>}
                 </button>
               </div>
             ))}

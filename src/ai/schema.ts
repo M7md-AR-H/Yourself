@@ -54,13 +54,13 @@ export function parseModelOutput(raw: string): ModelOutput | null {
     data = JSON.parse(raw);
   } catch {
     const m = raw.match(/\{[\s\S]*\}/);
-    if (!m) return null;
     try {
-      data = JSON.parse(m[0]);
+      data = m ? JSON.parse(m[0]) : null;
     } catch {
-      return null;
+      data = null;
     }
   }
+  if (!data) data = salvage(raw);
   if (!data || typeof data !== 'object') return null;
   const obj = data as Record<string, unknown>;
   const list = Array.isArray(obj.commands) ? obj.commands.slice(0, 20) : [];
@@ -70,6 +70,24 @@ export function parseModelOutput(raw: string): ModelOutput | null {
     if (c) commands.push(c);
   }
   return { reply: s(obj.reply, 800) ?? '', commands };
+}
+
+/** Output cut off mid-JSON (token limit): keep every command object that did complete. */
+function salvage(raw: string): { commands: unknown[]; reply: string } | null {
+  const start = raw.indexOf('[', raw.indexOf('"commands"'));
+  if (raw.indexOf('"commands"') < 0 || start < 0) return null;
+  const commands: unknown[] = [];
+  let depth = 0, from = -1, inStr = false, esc = false;
+  for (let i = start + 1; i < raw.length; i++) {
+    const ch = raw[i];
+    if (inStr) { if (esc) esc = false; else if (ch === '\\') esc = true; else if (ch === '"') inStr = false; continue; }
+    if (ch === '"') inStr = true;
+    else if (ch === '{') { if (depth++ === 0) from = i; }
+    else if (ch === '}' && --depth === 0 && from >= 0) {
+      try { commands.push(JSON.parse(raw.slice(from, i + 1))); } catch { /* skip */ }
+    } else if (ch === ']' && depth === 0) break;
+  }
+  return commands.length ? { commands, reply: '' } : null;
 }
 
 export function sanitizeCommand(item: unknown): Command | null {
@@ -82,7 +100,7 @@ export function sanitizeCommand(item: unknown): Command | null {
     case 'set_pillar': { const title = s(o.title, 40); return title && pillar ? { type: 'set_pillar', pillar, title } : null; }
     case 'set_action': {
       const title = s(o.title ?? o.action, 60);
-      const slot = typeof o.slot === 'number' ? o.slot : undefined;
+      const slot = typeof o.slot === 'number' && Number.isInteger(o.slot) && o.slot >= 1 && o.slot <= 8 ? o.slot : undefined;
       return title && pillar ? { type: 'set_action', pillar, title, slot, replace: s(o.replace, 60) } : null;
     }
     case 'remove_action': { const action = s(o.action ?? o.title, 60); return action ? { type: 'remove_action', action, pillar } : null; }
@@ -95,8 +113,8 @@ export function sanitizeCommand(item: unknown): Command | null {
     case 'edit_task': { const task = s(o.task, 140); return task ? { type: 'edit_task', task, title: s(o.title, 140), due: s(o.due, 20) } : null; }
     case 'clear_done_tasks': return { type: 'clear_done_tasks' };
     case 'add_note': { const text = s(o.text ?? o.note ?? o.title, 4000); return text ? { type: 'add_note', text, pillar } : null; }
-    case 'edit_note': { const note = s(o.note, 200) ?? 'last'; const text = s(o.text, 4000); return text ? { type: 'edit_note', note, text } : null; }
-    case 'delete_note': { const note = s(o.note ?? o.text, 200) ?? 'last'; return { type: 'delete_note', note }; }
+    case 'edit_note': { const note = s(o.note, 200); const text = s(o.text, 4000); return note && text ? { type: 'edit_note', note, text } : null; }
+    case 'delete_note': { const note = s(o.note ?? o.text, 200); return note ? { type: 'delete_note', note } : null; }
     case 'navigate': {
       const page = s(o.page, 20) as Page | undefined;
       return page && ['today', 'chart', 'notes', 'chat', 'settings'].includes(page) ? { type: 'navigate', page, pillar } : null;

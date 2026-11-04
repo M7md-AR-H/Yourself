@@ -67,7 +67,7 @@ export function useToday(): string {
 export function useChart() {
   const today = useToday();
   const data = useLiveQuery(async () => {
-    const since = addDays(today, -14);
+    const since = addDays(today, -400); // long window so streaks aren't capped
     const [goal, pillars, actions, checkins, tasks] = await Promise.all([
       db.goal.get('goal'),
       db.pillars.toArray(),
@@ -88,8 +88,9 @@ export function useChart() {
 export function useTheme(pref: Settings['theme'] | undefined) {
   useEffect(() => {
     const mq = matchMedia('(prefers-color-scheme: dark)');
+    if (!pref) return; // settings not loaded yet: keep the theme the inline script set
     const apply = () => {
-      const p = pref ?? 'system';
+      const p = pref;
       const dark = p === 'dark' || (p === 'system' && mq.matches);
       document.documentElement.dataset.theme = dark ? 'dark' : 'light';
       document.querySelector('meta[name="theme-color"]')?.setAttribute('content', dark ? '#12100e' : '#e7e1d8');
@@ -104,21 +105,4 @@ export function useTheme(pref: Settings['theme'] | undefined) {
 /* ---------- AI engine status ---------- */
 export function useEngine() {
   return useSyncExternalStore(engine.subscribe, engine.getStatus);
-}
-
-/** Shows `true` only after `delay` ms, then keeps it on for at least `min` ms (no loader flicker). */
-export function useDelayedFlag(on: boolean, delay = 200, min = 300) {
-  const [shown, setShown] = useState(false);
-  const [since, setSince] = useState(0);
-  useEffect(() => {
-    if (on) {
-      const t = setTimeout(() => { setShown(true); setSince(Date.now()); }, delay);
-      return () => clearTimeout(t);
-    }
-    if (!shown) return;
-    const left = Math.max(0, min - (Date.now() - since));
-    const t = setTimeout(() => setShown(false), left);
-    return () => clearTimeout(t);
-  }, [on, delay, min, shown, since]);
-  return shown;
 }

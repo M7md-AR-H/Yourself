@@ -37,8 +37,8 @@ export function Today({ settings, onEdit }: { settings: Settings; onEdit: (t: Ed
 
   const diff = stats.checkinsThisWeek - stats.checkinsLastWeek;
 
-  const toggleTask = (t: Task) => exec([{ type: t.done ? 'reopen_task' : 'complete_task', task: t.title }]);
-  const toggleAction = (a: ActionStat) => exec([{ type: a.doneToday ? 'uncheck' : 'check_in', action: a.action.title }]);
+  const toggleTask = (t: Task) => exec([{ type: t.done ? 'reopen_task' : 'complete_task', task: t.title, id: t.id }]);
+  const toggleAction = (a: ActionStat) => exec([{ type: a.doneToday ? 'uncheck' : 'check_in', action: a.action.title, id: a.action.id }]);
 
   return (
     <div className="stack-lg">

@@ -55,7 +55,8 @@ Deploy: pushing to `main` runs `.github/workflows/deploy.yml` → GitHub Pages (
 - [x] Onboarding (3 steps, one-tap defaults)
 - [x] Settings: name, theme, model, export/import backup, clear chat
 - [x] PWA (installable, offline app shell), GitHub Pages deploy workflow, CI
-- [x] Unit tests (97) + e2e tests (18 across POCO F5 light/dark + 360px)
+- [x] Unit tests (105) + e2e tests (18 across POCO F5 light/dark + 360px)
+- [x] Code review (Sonnet) — 15 medium/low findings fixed, no high-severity issues
 - [ ] Owner: enable GitHub Pages and test on the POCO F5 (`OWNER_TASKS.md`)
 - [ ] Tune the prompt against real Gemma output on the phone (needs a test run)
 
@@ -87,6 +88,9 @@ Deploy: pushing to `main` runs `.github/workflows/deploy.yml` → GitHub Pages (
 | 2026-11-04 | Background is a procedural blurred "warm interior" made of gradients, not a photo | No licensed photo available; avoids a large image download; easy to swap for a real photo later. |
 | 2026-11-04 | Fonts: Instrument Serif (display) + Manrope (UI), self-hosted | Two families max, not default Inter; works offline. |
 | 2026-11-04 | Hash routing (`#/chart?pillar=3`) | URL = state, works on GitHub Pages without server rewrites. |
+| 2026-11-04 | UI passes record ids to commands; the AI passes names | Taps must be exact; small models are better with names |
+| 2026-11-04 | One generation at a time (app-wide queue in `engine.complete`) | WebLLM runs one request at a time; prevents the top bar and chat from clobbering each other |
+| 2026-11-04 | Backup import validates every row, and can be undone | Imported files are untrusted input; a bad file must not brick the app |
 | 2026-11-04 | Starter chart includes the 8 pillars + sleep actions from the example; other 56 actions written by me | One-tap start = minimal effort; all editable. |
 
 ## Known limitations
@@ -101,4 +105,6 @@ Deploy: pushing to `main` runs `.github/workflows/deploy.yml` → GitHub Pages (
 | Offline parser misses subtle phrasing (e.g. "called mom" isn't matched to the task "Call mom") | It's rules, not a model | Gemma on; or more rules |
 | Chart overview shows action colour only, no action names | 81 cells on a 393 px screen: ~38 px cells are too small for text | Tap a block for names; laptop layout can show them |
 | No ⌘K menu, no left rail | Phone-first; those are laptop patterns | Phase 3 |
-| Same action name in two pillars: a check-in by name picks the first | Commands address things by name (easier for a small model) | Add id-based variants for UI use |
+| AI addresses items by name; two items with the same name → it picks the best/newest match | Small models handle names far better than ids (the UI uses ids, so taps are exact) | A disambiguation question from the assistant |
+| Only the newest change has an Undo button | Older snapshots could overwrite later edits | Per-field undo history |
+| Gemma builds need a GPU with 16-bit float (`shader-f16`) | Only q4f16 builds are offered | Add q4f32 variants (bigger, slower) |

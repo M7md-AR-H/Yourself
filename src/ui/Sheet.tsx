@@ -6,6 +6,8 @@ export function Sheet({ open, onClose, label, children }: { open: boolean; onClo
   const ref = useRef<HTMLDivElement>(null);
   const drag = useDragControls();
   const opener = useRef<Element | null>(null);
+  const close = useRef(onClose);
+  useEffect(() => { close.current = onClose; });
 
   useEffect(() => {
     if (!open) return;
@@ -15,7 +17,7 @@ export function Sheet({ open, onClose, label, children }: { open: boolean; onClo
       first?.focus();
     }, 50);
     const onKey = (e: KeyboardEvent) => {
-      if (e.key === 'Escape') onClose();
+      if (e.key === 'Escape') close.current();
       if (e.key === 'Tab' && ref.current) {
         const f = ref.current.querySelectorAll<HTMLElement>('button, input, textarea, select, a[href], [tabindex]:not([tabindex="-1"])');
         if (!f.length) return;
@@ -30,7 +32,7 @@ export function Sheet({ open, onClose, label, children }: { open: boolean; onClo
       document.removeEventListener('keydown', onKey);
       (opener.current as HTMLElement | null)?.focus?.();
     };
-  }, [open, onClose]);
+  }, [open]);
 
   return (
     <AnimatePresence>

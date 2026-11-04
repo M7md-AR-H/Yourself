@@ -22,6 +22,19 @@ export default function App() {
     if (settings?.aiEnabled && engine.getStatus().state === 'off') void engine.load(settings.model);
   }, [settings?.aiEnabled, settings?.model]);
 
+  // Keyboard detection: when the visual viewport shrinks a lot, hide the tab bar.
+  useEffect(() => {
+    const vv = window.visualViewport;
+    if (!vv) return;
+    const full = { h: window.innerHeight };
+    const onResize = () => {
+      full.h = Math.max(full.h, window.innerHeight);
+      document.documentElement.classList.toggle('kb', vv.height < full.h * 0.75);
+    };
+    vv.addEventListener('resize', onResize);
+    return () => vv.removeEventListener('resize', onResize);
+  }, []);
+
   useEffect(() => {
     document.title = `${route.page[0].toUpperCase()}${route.page.slice(1)} · Yourself`;
     window.scrollTo({ top: 0 });

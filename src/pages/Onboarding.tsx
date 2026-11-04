@@ -17,9 +17,13 @@ export function Onboarding() {
     if (busy) return;
     setBusy(true);
     const cmds = starter ? starterCommands(goal.trim() || STARTER_GOAL) : [{ type: 'set_goal' as const, title: goal.trim() || STARTER_GOAL }];
-    await runCommands(cmds);
-    await db.settings.put({ ...DEFAULT_SETTINGS, name: name.trim(), aiEnabled: ai, onboarded: true });
-    if (ai) void engine.load(DEFAULT_SETTINGS.model);
+    try {
+      await runCommands(cmds);
+      await db.settings.put({ ...DEFAULT_SETTINGS, name: name.trim(), aiEnabled: ai, onboarded: true });
+      if (ai) void engine.load(DEFAULT_SETTINGS.model);
+    } catch {
+      setBusy(false);
+    }
   };
 
   const next = (e: FormEvent) => { e.preventDefault(); setStep((s) => s + 1); };

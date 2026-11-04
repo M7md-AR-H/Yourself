@@ -20,8 +20,10 @@ export function addDays(date: string, n: number): string {
 export const normalize = (s: string) =>
   s
     .toLowerCase()
+    .normalize('NFKD')
+    .replace(/\p{M}/gu, '') // "café" → "cafe"
     .replace(/[’']/g, '')
-    .replace(/[^a-z0-9\s-]/g, ' ')
+    .replace(/[^\p{L}\p{N}\s-]/gu, ' ')
     .replace(/\s+/g, ' ')
     .trim();
 

@@ -352,6 +352,16 @@ p { margin: 0; }
 .ai-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--muted); }
 .ai-dot.on { background: var(--accent); box-shadow: 0 0 0 3px color-mix(in srgb, var(--accent) 25%, transparent); }
 
+/* Keyboard open (set from JS via visualViewport): drop the tab bar, dock the composer. */
+:root.kb .tabbar { opacity: 0; pointer-events: none; transform: translateX(-50%) translateY(24px); }
+:root.kb .composer { bottom: calc(var(--s2)); }
+:root.kb .toasts { bottom: calc(var(--s2) + var(--toast-lift, 0px)); }
+.tabbar { transition: opacity 160ms var(--ease), transform 160ms var(--ease); }
+input[type='date'].filter { font-size: 16px; }
+@media (max-width: 370px) {
+  .tab { padding: 0 10px; font-size: 13px; }
+}
+
 @media (prefers-reduced-motion: reduce) {
   *, *::before, *::after { animation-duration: 0.01ms !important; animation-iteration-count: 1 !important; transition-duration: 0.01ms !important; }
 }

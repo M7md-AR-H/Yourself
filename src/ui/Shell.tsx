@@ -46,7 +46,7 @@ export function TopBar({ settings, route }: { settings: Settings; route: Route }
         <form className="cmd" onSubmit={submit} role="search">
           <Sparkles size={16} aria-hidden style={{ color: 'var(--muted)', flex: 'none' }} />
           <label htmlFor="cmd" className="sr-only">Tell the assistant</label>
-          <input id="cmd" value={text} onChange={(e) => setText(e.target.value)} placeholder={ph} autoComplete="off" enterKeyHint="send" disabled={busy} />
+          <input id="cmd" value={text} onChange={(e) => setText(e.target.value)} placeholder={ph} autoComplete="off" enterKeyHint="send" readOnly={busy} aria-busy={busy} />
           {text && (
             <button className="icon-btn sm" type="submit" aria-label="Send" disabled={busy}>
               <ArrowUp size={18} />

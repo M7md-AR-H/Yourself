@@ -26,7 +26,7 @@ const heat = (score: number) =>
 type EditState =
   | { kind: 'goal'; value: string }
   | { kind: 'pillar'; slot: number; value: string }
-  | { kind: 'action'; pillarSlot: number; slot: number; value: string; existing?: string };
+  | { kind: 'action'; pillarSlot: number; slot: number; value: string; existing?: string; id?: string };
 
 export function Chart() {
   const { stats, data } = useChart();
@@ -129,7 +129,7 @@ function PillarDetail({ slot, p, onEdit }: { slot: number; p?: PillarStat; onEdi
   const pid = p?.pillar.id ?? '';
   const tasks = useLiveQuery(() => db.tasks.where('pillarId').equals(pid).filter((t) => !t.done).toArray(), [pid]) ?? [];
   const notes = useLiveQuery(() => db.notes.where('pillarId').equals(pid).reverse().sortBy('createdAt'), [pid]) ?? [];
-  const toggle = (a: ActionStat) => exec([{ type: a.doneToday ? 'uncheck' : 'check_in', action: a.action.title }]);
+  const toggle = (a: ActionStat) => exec([{ type: a.doneToday ? 'uncheck' : 'check_in', action: a.action.title, id: a.action.id }]);
 
   return (
     <>
@@ -157,7 +157,7 @@ function PillarDetail({ slot, p, onEdit }: { slot: number; p?: PillarStat; onEdi
             <button key={pos} className={`dcell ${a.doneToday ? 'done' : ''}`} aria-pressed={a.doneToday}
               aria-label={`${a.action.title}. ${a.days.filter(Boolean).length} of 7 days. ${a.doneToday ? 'Done today, tap to undo' : 'Tap to log today'}`}
               onClick={() => toggle(a)}
-              onContextMenu={(e) => { e.preventDefault(); onEdit({ kind: 'action', pillarSlot: slot, slot: i, value: a.action.title, existing: a.action.title }); }}>
+              onContextMenu={(e) => { e.preventDefault(); onEdit({ kind: 'action', pillarSlot: slot, slot: i, value: a.action.title, existing: a.action.title, id: a.action.id }); }}>
               <motion.span className="fill" initial={false} animate={{ opacity: a.doneToday ? 1 : a.score * 0.35 }} transition={{ duration: 0.2 }} />
               <span className="t" lang="en">{a.action.title}</span>
               <span className="between" style={{ width: '100%' }}>
@@ -175,7 +175,7 @@ function PillarDetail({ slot, p, onEdit }: { slot: number; p?: PillarStat; onEdi
             {p.actions.map((a, i) => a && (
               <div className="list-item" key={a.action.id}>
                 <span className="grow">{a.action.title}<div className="meta tnum">{a.streak ? `${a.streak}-day streak · ` : ''}{a.days.filter(Boolean).length}/7 days</div></span>
-                <button className="icon-btn sm" aria-label={`Edit ${a.action.title}`} onClick={() => onEdit({ kind: 'action', pillarSlot: slot, slot: i, value: a.action.title, existing: a.action.title })}><Pencil size={16} /></button>
+                <button className="icon-btn sm" aria-label={`Edit ${a.action.title}`} onClick={() => onEdit({ kind: 'action', pillarSlot: slot, slot: i, value: a.action.title, existing: a.action.title, id: a.action.id })}><Pencil size={16} /></button>
               </div>
             ))}
           </div>
@@ -223,9 +223,10 @@ function EditCell({ state, onClose }: { state: EditState | null; onClose: () => 
   const { exec } = useToast();
   const [value, setValue] = useState('');
   const [prev, setPrev] = useState<EditState | null>(null);
-  if (state !== prev) { setPrev(state); setValue(state?.value ?? ''); }
+  if (state && state !== prev) { setPrev(state); setValue(state.value); }
+  const shown = state ?? prev;
 
-  const title = !state ? '' : state.kind === 'goal' ? 'Main goal' : state.kind === 'pillar' ? 'Pillar' : state.existing ? 'Edit action' : 'New action';
+  const title = !shown ? '' : shown.kind === 'goal' ? 'Main goal' : shown.kind === 'pillar' ? 'Pillar' : shown.existing ? 'Edit action' : 'New action';
   const submit = async (e: FormEvent) => {
     e.preventDefault();
     if (!state || !value.trim()) return;
@@ -239,12 +240,12 @@ function EditCell({ state, onClose }: { state: EditState | null; onClose: () => 
       <form className="stack" onSubmit={submit}>
         <h2 className="section-title">{title}</h2>
         <div className="field">
-          <label htmlFor="cell-in">{state?.kind === 'action' ? 'A small action you can do in a day' : 'Name'}</label>
+          <label htmlFor="cell-in">{shown?.kind === 'action' ? 'A small action you can do in a day' : 'Name'}</label>
           <input id="cell-in" className="input" value={value} onChange={(e) => setValue(e.target.value)} maxLength={60} autoFocus enterKeyHint="done" />
         </div>
         <div className="row">
           {state?.kind === 'action' && state.existing && (
-            <button type="button" className="btn btn-danger" onClick={async () => { await exec([{ type: 'remove_action', action: state.existing!, pillar: state.pillarSlot + 1 }]); onClose(); }}>Remove</button>
+            <button type="button" className="btn btn-danger" onClick={async () => { await exec([{ type: 'remove_action', action: state.existing!, pillar: state.pillarSlot + 1, id: state.id }]); onClose(); }}>Remove</button>
           )}
           <button className="btn btn-solid" style={{ flex: 1 }} type="submit" disabled={!value.trim()}>Save</button>
         </div>

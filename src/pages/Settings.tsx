@@ -1,7 +1,8 @@
 import { Download, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import * as engine from '../ai/engine';
-import { db, TABLES } from '../lib/db';
+import { db, TABLES, type TableName } from '../lib/db';
+import type { JournalEntry } from '../lib/commands';
 import { useEngine } from '../lib/hooks';
 import type { ModelId, Settings as S, ThemePref } from '../lib/types';
 import { ymd } from '../lib/util';
@@ -45,15 +46,24 @@ export function Settings({ settings }: { settings: S }) {
     try {
       const data = JSON.parse(await f.text());
       if (data?.app !== 'yourself') throw new Error('This is not a Yourself backup file.');
+      const clean = validateBackup(data);
+      // Snapshot current data so the import can be undone from the toast.
+      const journal: JournalEntry[] = [];
+      for (const t of TABLES) {
+        if (!clean[t]) continue;
+        // eslint-disable-next-line @typescript-eslint/no-explicit-any
+        for (const row of (await db[t].toArray()) as any[]) journal.push({ table: t, key: row.id, before: row });
+        for (const row of clean[t]!) if (!journal.some((j) => j.table === t && j.key === row.id)) journal.push({ table: t, key: row.id as string, before: undefined });
+      }
       await db.transaction('rw', TABLES.map((t) => db[t]), async () => {
         for (const t of TABLES) {
-          if (!Array.isArray(data[t])) continue;
+          if (!clean[t]) continue;
           await db[t].clear();
           // eslint-disable-next-line @typescript-eslint/no-explicit-any
-          await (db[t] as any).bulkPut(data[t]);
+          await (db[t] as any).bulkPut(clean[t]);
         }
       });
-      toast({ title: 'Backup restored' });
+      toast({ title: 'Backup restored', detail: 'Your old data was replaced.', journal });
     } catch (e) {
       toast({ title: 'Import failed', detail: e instanceof Error ? e.message : undefined });
     }
@@ -145,4 +155,38 @@ export function Settings({ settings }: { settings: S }) {
       <p className="label" style={{ textAlign: 'center' }}>Yourself · v0.1</p>
     </div>
   );
+}
+
+type Row = Record<string, unknown>;
+const isStr = (v: unknown) => typeof v === 'string';
+const isNum = (v: unknown) => typeof v === 'number' && Number.isFinite(v);
+const slot = (v: unknown) => Number.isInteger(v) && (v as number) >= 0 && (v as number) <= 7;
+const RULES: Record<TableName, (r: Row) => boolean> = {
+  goal: (r) => r.id === 'goal' && isStr(r.title),
+  pillars: (r) => isStr(r.id) && isStr(r.title) && slot(r.index),
+  actions: (r) => isStr(r.id) && isStr(r.pillarId) && isStr(r.title) && slot(r.index),
+  checkins: (r) => isStr(r.id) && isStr(r.actionId) && isStr(r.date) && /^\d{4}-\d{2}-\d{2}$/.test(r.date as string),
+  tasks: (r) => isStr(r.id) && isStr(r.title) && typeof r.done === 'boolean' && isNum(r.createdAt),
+  notes: (r) => isStr(r.id) && isStr(r.text) && isNum(r.createdAt),
+  chat: (r) => isStr(r.id) && isStr(r.text) && (r.role === 'user' || r.role === 'assistant') && isNum(r.createdAt),
+  settings: (r) => r.id === 'settings' && isStr(r.name),
+};
+
+/** Backup files are untrusted input: keep only rows with the right shape, reject the file if too much is wrong. */
+function validateBackup(data: Record<string, unknown>): Partial<Record<TableName, Row[]>> {
+  const out: Partial<Record<TableName, Row[]>> = {};
+  let bad = 0, total = 0;
+  for (const t of TABLES) {
+    const rows = data[t];
+    if (!Array.isArray(rows)) continue;
+    total += rows.length;
+    out[t] = rows.filter((r) => {
+      const ok = !!r && typeof r === 'object' && RULES[t](r as Row);
+      if (!ok) bad++;
+      return ok;
+    });
+  }
+  if (!total) throw new Error('The backup is empty.');
+  if (bad > total / 10) throw new Error(`${bad} of ${total} rows look broken, so nothing was imported.`);
+  return out;
 }

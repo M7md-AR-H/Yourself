@@ -5,7 +5,8 @@
 - Mandala chart (9×9) as the stats page, zoomable 3×3 blocks with tap-to-log, Today dashboard, Notes, Chat, Settings, 3-step onboarding with a starter chart.
 - On-device AI: Gemma via WebLLM in a Web Worker, 3 model choices, JSON-schema-constrained output → validated commands. Offline rule-based parser as fallback (written by a Sonnet subagent, reviewed and spot-checked).
 - One command layer (`src/lib/commands.ts`) used by both the UI and the AI, with an undo journal → every change shows an Undo toast.
-- Tests: 97 unit (vitest), 18 e2e (Playwright; POCO F5 light/dark + 360 px). CI (`.github/workflows/ci.yml`) and GitHub Pages deploy (`deploy.yml`).
+- A Sonnet code review found 15 medium/low issues (no high). All fixed, with tests: ids for UI actions, Unicode-aware matching, worker cleanup + model-switch race, f16 GPU check, truncated-JSON salvage, backup validation + ErrorBoundary, keyboard-aware layout, past-weekday check-ins, theme flash.
+- Tests: 105 unit (vitest), 18 e2e (Playwright; POCO F5 light/dark + 360 px). CI (`.github/workflows/ci.yml`) and GitHub Pages deploy (`deploy.yml`).
 - Docs: README (roadmap, decision log, limitations), ADR 0001, OWNER_TASKS, project CLAUDE.md; your two rule files are in `docs/`.
 
 ## Current state

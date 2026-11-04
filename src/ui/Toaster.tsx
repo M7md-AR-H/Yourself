@@ -25,7 +25,8 @@ export function Toaster({ children }: { children: ReactNode }) {
 
   const toast = useCallback((t: Omit<ToastItem, 'id'>) => {
     const id = ++seq.current;
-    setItems((xs) => [...xs.slice(-1), { ...t, id }]);
+    // Only the newest change can be undone: older snapshots could overwrite newer edits.
+    setItems((xs) => [...xs.slice(-1).map((x) => (t.journal ? { ...x, journal: undefined } : x)), { ...t, id }]);
     timers.current.set(id, setTimeout(() => dismiss(id), t.journal?.length ? 6000 : 3500));
   }, [dismiss]);
 

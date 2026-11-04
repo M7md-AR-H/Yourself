@@ -60,8 +60,8 @@ export function EditorSheet({ target, onClose }: { target: EditorTarget | null; 
   const remove = async () => {
     if (!target || target.kind === 'new') return;
     const r = await runCommands([target.kind === 'note'
-      ? { type: 'delete_note', note: target.note.text }
-      : { type: 'delete_task', task: target.task.title }]);
+      ? { type: 'delete_note', note: target.note.text, id: target.note.id }
+      : { type: 'delete_task', task: target.task.title, id: target.task.id }]);
     onClose();
     toast({ title: r.effects[0] ?? 'Deleted', journal: r.journal });
   };

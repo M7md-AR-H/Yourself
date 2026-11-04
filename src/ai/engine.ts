@@ -22,10 +22,13 @@ export type EngineStatus =
 type Listener = (s: EngineStatus) => void;
 
 let engine: WebWorkerMLCEngine | null = null;
+let worker: Worker | null = null;
 let loadedModel: ModelId | null = null;
-let loading: Promise<void> | null = null;
+let loading: { model: ModelId; p: Promise<void> } | null = null;
 let status: EngineStatus = { state: 'off' };
 const listeners = new Set<Listener>();
+/** One generation at a time, across the whole app (top bar + chat share it). */
+let queue: Promise<unknown> = Promise.resolve();
 
 function set(s: EngineStatus) {
   status = s;
@@ -38,11 +41,12 @@ export function subscribe(l: Listener) {
 }
 
 export async function checkSupport(): Promise<string | null> {
-  const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<unknown> } }).gpu;
+  const gpu = (navigator as Navigator & { gpu?: { requestAdapter(): Promise<{ features: Set<string> } | null> } }).gpu;
   if (!gpu) return 'This browser has no WebGPU. Use Chrome on Android (version 121 or newer).';
   try {
     const adapter = await gpu.requestAdapter();
     if (!adapter) return 'WebGPU is on, but no GPU adapter was found.';
+    if (!adapter.features.has('shader-f16')) return 'This GPU lacks 16-bit float support, which these Gemma builds need.';
   } catch {
     return 'WebGPU could not start on this device.';
   }
@@ -64,10 +68,24 @@ export async function deleteModel(model: ModelId) {
   await deleteModelAllInfoInCache(model);
 }
 
+async function teardown() {
+  try {
+    await engine?.unload();
+  } catch {
+    /* ignore */
+  }
+  worker?.terminate(); // frees GPU + WASM memory held by the old worker
+  worker = null;
+  engine = null;
+  loadedModel = null;
+}
+
 export async function load(model: ModelId): Promise<void> {
   if (loadedModel === model && engine) return;
-  if (loading) return loading;
-  loading = (async () => {
+  if (loading?.model === model) return loading.p;
+  if (loading) await loading.p.catch(() => {}); // a different model was loading: wait, then switch
+  if (loadedModel === model && engine) return;
+  const p = (async () => {
     const reason = await checkSupport();
     if (reason) {
       set({ state: 'unsupported', reason });
@@ -75,55 +93,56 @@ export async function load(model: ModelId): Promise<void> {
     }
     set({ state: 'loading', progress: 0, text: 'Starting…' });
     try {
-      if (engine) await unload();
+      await teardown();
       const { CreateWebWorkerMLCEngine } = await import('@mlc-ai/web-llm');
-      const worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
+      worker = new Worker(new URL('./worker.ts', import.meta.url), { type: 'module' });
       engine = await CreateWebWorkerMLCEngine(worker, model, {
         initProgressCallback: (r) => set({ state: 'loading', progress: r.progress, text: r.text }),
       });
       loadedModel = model;
       set({ state: 'ready', model });
     } catch (e) {
-      engine = null;
-      loadedModel = null;
+      await teardown();
       set({ state: 'error', message: e instanceof Error ? e.message : String(e) });
     }
   })().finally(() => {
-    loading = null;
+    if (loading?.p === p) loading = null;
   });
-  return loading;
+  loading = { model, p };
+  return p;
 }
 
 export async function unload() {
-  try {
-    await engine?.unload();
-  } catch {
-    /* ignore */
-  }
-  engine = null;
-  loadedModel = null;
+  await teardown();
   set({ state: 'off' });
 }
 
 export const isReady = () => status.state === 'ready' && !!engine;
 
 /** One JSON-constrained completion. Returns raw text (validated by the caller). */
-export async function complete(prompt: string, signal?: AbortSignal): Promise<string> {
-  if (!engine) throw new Error('Model not loaded');
-  const onAbort = () => engine?.interruptGenerate();
-  signal?.addEventListener('abort', onAbort);
-  try {
-    const res = await engine.chat.completions.create({
-      // Gemma has no system role, so all instructions live in one user turn.
-      messages: [{ role: 'user', content: prompt }],
-      temperature: 0.2,
-      max_tokens: 400,
-      response_format: { type: 'json_object', schema: JSON.stringify(RESPONSE_SCHEMA) },
-    });
-    return res.choices[0]?.message?.content ?? '';
-  } finally {
-    signal?.removeEventListener('abort', onAbort);
-    // Each message is independent (context is rebuilt), so drop the KV cache.
-    await engine.resetChat().catch(() => {});
-  }
+export function complete(prompt: string, signal?: AbortSignal): Promise<string> {
+  const run = async () => {
+    const e = engine;
+    if (!e) throw new Error('Model not loaded');
+    const onAbort = () => e.interruptGenerate();
+    signal?.addEventListener('abort', onAbort);
+    try {
+      const res = await e.chat.completions.create({
+        // Gemma has no system role, so all instructions live in one user turn.
+        messages: [{ role: 'user', content: prompt }],
+        temperature: 0.2,
+        max_tokens: 800,
+        response_format: { type: 'json_object', schema: JSON.stringify(RESPONSE_SCHEMA) },
+      });
+      if (signal?.aborted) throw new DOMException('Aborted', 'AbortError');
+      return res.choices[0]?.message?.content ?? '';
+    } finally {
+      signal?.removeEventListener('abort', onAbort);
+      // Each message is independent (context is rebuilt), so drop the KV cache.
+      await e.resetChat().catch(() => {});
+    }
+  };
+  const next = queue.then(run, run);
+  queue = next.catch(() => {});
+  return next;
 }

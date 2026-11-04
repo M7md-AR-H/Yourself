@@ -2,7 +2,7 @@
 
 A notes + tasks app built around the **Mandala chart** (the "Japanese method": 1 main goal → 8 pillars → 8 small actions each, on a 9×9 grid). You talk to a **private AI (Gemma) that runs on your phone**; it turns what you say into tasks, notes and check-ins, and the chart fills in with colour to show how your life is going.
 
-**Status (2026-11-04, session 2):** Phase 1 done; Phase 2 part A done (weekly review, help page, voice, AI test set + on-phone test runner, chart redesign). Not yet tested on the real POCO F5, and Gemma has not run yet (the cloud build box can't reach Hugging Face). See `HANDOFF.md`.
+**Status (2026-11-04, session 3):** All planned phases built: Phase 1 (phone MVP), Phase 2 (review, help, voice, AI eval, reminders), Phase 3 (laptop layout, ⌘K, shortcuts). Remaining items wait on the owner's device tests or decisions. Not yet tested on the real POCO F5, and Gemma has not run yet (the cloud build box can't reach Hugging Face). See `HANDOFF.md`.
 
 ## How it works (short)
 
@@ -76,18 +76,18 @@ Part A (no phone needed, session 2):
 - [x] Code review (Sonnet): 12 medium/low findings fixed, no high-severity issues
 
 Part B:
-- [ ] Task times: `time` on add_task/edit_task ("at 5pm"), shown on Today, parsed offline too
-- [ ] Reminders: notification at a task's time while the app is running (in or out of focus)
-- [ ] Daily check-in reminder at a chosen time + daily "tasks due" summary via Periodic Background Sync (installed app)
-- [ ] Settings → Reminders (permission, on/off, time); `set_reminders` command for the AI
+- [x] Task times: `time` on add_task/edit_task ("at 5pm"), shown on Today, parsed offline too
+- [x] Reminders: notification at a task's time while the app is running (in or out of focus)
+- [x] Daily check-in reminder at a chosen time + daily "tasks due" summary via Periodic Background Sync (installed app)
+- [x] Settings → Reminders (permission, on/off, time); `set_reminders` command for the AI; Help section
 - [ ] Waits on phone test: fix phone findings; tune prompt from measured Gemma eval
 
 ### Phase 3 — Laptop
-- [ ] ≥ 900 px layout: floating left icon rail with tooltips (replaces bottom tabs), wider top bar
-- [ ] Today as a bento grid; Notes in two columns
-- [ ] Chart overview + block detail side by side
-- [ ] ⌘K / Ctrl+K command menu (pages, actions, "ask the assistant") with shortcut hints
-- [ ] Keyboard shortcuts (g t / g c / g n …, n = new note, / = focus assistant)
+- [x] ≥ 900 px layout: floating left icon rail with tooltips (replaces bottom tabs), wider top bar with "Welcome, {name}"
+- [x] Today as a bento grid; Review in two columns; Notes in 2–3 columns
+- [x] Chart overview + block detail side by side
+- [x] ⌘K / Ctrl+K command menu (pages, actions, pillars, help, "ask the assistant") with shortcut hints — built by a Sonnet subagent, wired + checked by Opus
+- [x] Keyboard shortcuts (G then T/C/R/N/A/S/H, N = new note, T = new task, / = focus assistant)
 - [ ] Waits on owner decision: sync between phone and laptop (see HANDOFF open questions)
 
 ## Decision log
@@ -115,6 +115,10 @@ Part B:
 | 2026-11-04 | Chart marks use `--chart: #059669` | Passed the dataviz validator (≥3:1 contrast) on light and dark; `#10b981` failed on light |
 | 2026-11-04 | Chart labels in Instrument Serif; "done today" = thin outline, not a dot | Owner feedback: smaller, nicer text; no big dots. Serif is narrower, fits 38 px cells |
 | 2026-11-04 | Deploy by pushing `dist/` to `gh-pages` from Actions | Owner asked Claude to deploy; the Actions-source Pages flow needs a settings click Claude can't do, a `gh-pages` branch usually auto-enables Pages |
+| 2026-11-04 | Reminders run in the page (30 s timer) + Periodic Background Sync summary, no push server | Web apps can't schedule exact alarms when closed (Notification Triggers was dropped); a push server would need hosting + accounts (owner decision) |
+| 2026-11-04 | "at 5" with no am/pm and hour 1–6 means pm | People rarely schedule 1–6 am; avoids "call mom at 5" firing at dawn |
+| 2026-11-04 | Laptop = same app, CSS breakpoint at 900 px, rail replaces tab bar | One codebase; phone UI unchanged below 900 px |
+| 2026-11-04 | Chart split view on laptop drops the zoom (shared-layout) animation | Overview and detail are on screen together; the same layoutId twice breaks framer-motion |
 | 2026-11-04 | Starter chart includes the 8 pillars + sleep actions from the example; other 56 actions written by me | One-tap start = minimal effort; all editable. |
 
 ## Known limitations
@@ -124,13 +128,12 @@ Part B:
 | Gemma not tested yet | Cloud box can't reach huggingface.co; no phone here | Owner phone test (`OWNER_TASKS.md`) |
 | Needs Chrome 121+ with WebGPU for Gemma | WebLLM runs on WebGPU only | A native Android build (MediaPipe / LiteRT) if WebGPU proves unreliable |
 | First AI use needs a 0.7–3.4 GB download | Model weights must be on the device | None (one-time); cached afterwards |
-| No sync between devices | Local-first, no backend yet | Phase 3 decision (export/import works today) |
 | Voice may use Google's servers | Chrome only does on-device speech for some languages/phones | Nothing in-app; the app says when it falls back |
 | Weekly review has no history beyond ~400 days | The chart query loads 400 days of check-ins | Paging or pre-aggregated weekly stats |
-| No reminders/notifications | Not in Phase 1 scope; web push on Android needs extra setup | Phase 2 |
+| Reminders only fire while the app runs (open or background); closed app gets a daily summary at most | Web platform: no exact alarms for closed web apps; Periodic Sync needs an installed PWA and Chrome decides timing | A push server (hosting + account), or a native Android wrapper |
+| No phone ↔ laptop sync | Local-first, no backend | Owner decision (see HANDOFF) |
 | Offline parser misses subtle phrasing (e.g. "called mom" isn't matched to the task "Call mom") | It's rules, not a model | Gemma on; or more rules |
 | Chart overview shows action colour only, no action names | 81 cells on a 393 px screen: ~38 px cells are too small for text | Tap a block for names; laptop layout can show them |
-| No ⌘K menu, no left rail | Phone-first; those are laptop patterns | Phase 3 |
 | AI addresses items by name; two items with the same name → it picks the best/newest match | Small models handle names far better than ids (the UI uses ids, so taps are exact) | A disambiguation question from the assistant |
 | Only the newest change has an Undo button | Older snapshots could overwrite later edits | Per-field undo history |
 | Gemma builds need a GPU with 16-bit float (`shader-f16`) | Only q4f16 builds are offered | Add q4f32 variants (bigger, slower) |

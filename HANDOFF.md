@@ -1,42 +1,50 @@
-# Handoff — 2026-11-04 (session 2)
+# Handoff — 2026-11-04 (session 3)
 
 ## What was done
-**Session 1 (merged in PR #1):** the whole Phase 1 phone app: Mandala chart, Today, Notes, Chat, Settings, onboarding, Gemma via WebLLM, offline parser, one command layer with undo, PWA, CI, docs.
+**Sessions 1–2 (merged, PRs #1–#4):** the phone app and its main features (Mandala chart, Today, Notes, Chat, Settings, onboarding, Gemma via WebLLM, offline parser, one command layer with undo), the weekly review, the Help page, voice, the AI eval set with an on-phone test runner, the chart redesign, and the GitHub Pages deploy (live at https://m7md-ar-h.github.io/Yourself/).
 
-**Session 2 (this one):**
-- **Weekly review** (`#/review`, from Today → "Weekly review" or "how was my week?"): This week / Last week / 4 weeks, overall score with change, actions-per-day bars, pillar trends, going well / needs love, and a reflection (Gemma, or a written summary offline). `computeStats` now takes a window length.
-- **Help page** (`#/help`, owner request): 11 sections (install, Gemma, talking, chart, today, review, backup, privacy, troubleshooting, AI test, developers). The content lives in `src/lib/help.ts` and is used by both the page and the AI. The AI can `navigate {page:'help', section}`. The help text is added to the prompt only for how-to messages. The offline helper answers how-to questions from the same text.
-- **Chart redesign** (owner feedback "more beauty", "smaller text, better font, no big dots"): frosted 3×3 cards, an emerald glow behind the goal, pillar centres with a conic progress ring, labels in Instrument Serif, "done today" shown as a thin outline, an overall ring, a pillar strip with mini rings, and zoomed tiles that fill up from the bottom with a check and a streak flame.
-- **Voice input**: a mic in the top bar and in chat (`src/ui/useVoice.ts`). It tries Chrome's on-device speech first and falls back to Google's online speech, with a toast saying so.
-- **AI eval**: `src/ai/eval.ts` (scorer) and `src/ai/eval-cases.json` (85 cases, written by a Sonnet subagent and checked by me). vitest scores the offline parser at 75/85 (88%) against a floor of 85%. **Settings → Test the assistant** runs the same cases on the phone with Gemma in a throw-away DB, and "Copy results" gives text to paste back.
-- **Offline parser**: past-tense completion of open tasks ("bought the milk" → completes "Buy milk"). Fixed a safety bug where "save this as a note: … clear done tasks" ran `clear_done_tasks`.
-- **Deploy**: `deploy.yml` now pushes `dist/` to the `gh-pages` branch and tries to point Pages at it.
-- **Code review (Sonnet)** of this session: no high-severity issues. Fixed 12 medium/low ones: the help rule was stealing ordinary tasks, `findHelp` matched inside words, voice could go online without telling you, voice errors were silent, help text named the wrong Pages source, a task-window off-by-an-hour, `pastTask` false positives, a11y roles on buttons, and the eval not aborting on unmount.
-- **Tests**: 131 unit, 27 e2e (3 phone profiles). Typecheck clean, lint has no errors.
+**Session 3 (this one; the owner said to build every phase before testing):**
+- **Task times and reminders (Phase 2B)**
+  - Tasks can have a time: `add_task`/`edit_task` take a `time` field ("at 5pm" → 17:00), handled by `resolveTime` in `commands.ts`. The offline parser pulls the time out of the title (`withTime`).
+  - `src/lib/reminders.ts` runs every 30 s while the app is alive. It notifies once per task (`notifiedAt`) and can also send a daily check-in nudge.
+  - `public/sw-reminders.js` is imported into the Workbox SW. It shows a daily "tasks due" summary via Periodic Background Sync (installed app only) and handles notification clicks.
+  - Settings → Reminders (`RemindersPanel`) and the `set_reminders` command, so the AI can change them.
+  - Help has a new "reminders" section.
+- **Laptop (Phase 3), from 900 px wide**
+  - A floating left icon rail with tooltips and shortcut hints replaces the tab bar, and the top bar says "Welcome, {name}".
+  - Today is a bento grid, Review uses two columns, and Notes uses 2–3 columns.
+  - On the Chart, the overview and the open block sit side by side.
+  - **⌘K / Ctrl+K** opens a command menu (pages, actions, pillars, help sections, "Ask the assistant"). It was built by a Sonnet subagent, then wired and checked by me.
+  - Keyboard shortcuts: G then T/C/R/N/A/S/H, N for a new note, T for a new task, / to focus the assistant.
+- **Tests:** 175 unit, 35 e2e (POCO F5 light/dark, 360 px, laptop 1440×900). The eval has 89 cases; the offline parser scores 79/89.
 
 ## Current state
-- **Works (verified here):** everything above, in light and dark mode, at 393 px and 360 px, with no horizontal scroll.
-- **Not verified:** Gemma on a real phone, and voice (headless Chromium has no microphone). The voice and WebLLM code follow the documented APIs but have never run.
-- **Deployed:** live at https://m7md-ar-h.github.io/Yourself/. GitHub reported the deployment as successful, but it couldn't be opened from the cloud box because github.io isn't in its network allowlist. Pages source is "GitHub Actions": the `deploy-pages` step is what actually publishes, and the `gh-pages` push is a harmless backup. The API step that tries to change Pages settings always gets a 403, which is expected.
+- **Works (verified in headless Chromium):** everything above at phone and laptop sizes, in light and dark mode.
+- **Not verified:** Gemma, voice, and real notifications on a device. Headless Chromium has no GPU, no microphone, and no OS notification centre.
 
 ## Next steps (in order)
-1. Owner phone test (`OWNER_TASKS.md` §2), including **Settings → Test the assistant → Copy results** with Gemma on. Paste the results into the next session.
-2. Tune `src/ai/prompt.ts` from those results: add examples for the failing tags and re-measure. Don't tune without numbers.
-3. Fix whatever the phone test finds: performance, keyboard, memory, voice.
-4. Phase 2 part B: reminders/notifications.
-5. Phase 3: laptop layout.
+1. Owner device tests (`OWNER_TASKS.md` §2, including the new rows), plus **Settings → Test the assistant → Copy results** with Gemma on.
+2. Tune `src/ai/prompt.ts` from the Gemma eval numbers. Add examples for the weakest tags and re-measure.
+3. Fix whatever the device tests find.
+4. Sync between phone and laptop, once the owner picks an option (see below).
 
 ## Open questions for the owner
-- After the phone test: is Gemma 3 1B good enough, or is a bigger model worth the download?
-- Reminders: do you want phone notifications for tasks with a due date? A time-of-day reminder needs extra work on Android.
-- Laptop: should phone and laptop sync automatically? That needs a backend or a sync service; export/import works today.
+- **Sync between phone and laptop.** Options:
+  - (a) Keep manual export/import. Free, works today.
+  - (b) Auto-sync through a file in your Google Drive. Needs a Google Cloud project and OAuth app (a free account step).
+  - (c) A small sync server, for example Cloudflare Workers + D1. Free tier, but needs an account and a domain or a workers.dev URL. End-to-end encryption is possible.
+  
+  This is your call, because it involves accounts and where your data lives.
+- **Exact-time reminders with the app fully closed** need a push server (same account question as sync) or a native Android wrapper. Is the current behaviour enough? It notifies while the app is running, plus a daily summary when it's installed.
+- After the phone test: is Gemma 3 1B good enough?
 
 ## Traps
-- Run e2e here with `PW_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`. CI installs its own browser.
-- Gemma has no system role, so everything goes in one user turn. Context is rebuilt every message.
-- Commands from the AI address things by **name**; the UI passes **ids**. Keep both paths.
-- Only the newest toast keeps an Undo, on purpose (older snapshots could overwrite newer edits).
-- `src/lib/hooks.ts` touches `location` at import time. Don't import pages or hooks into unit tests. Pure logic lives in `src/lib/*` (e.g. `review.ts`, `help.ts`).
-- `src/ai/fallback.ts` already has an `IRREGULAR` map (verb stems for check-ins). The past-tense task map is `PAST_VERBS`.
-- Chart colours: marks use `--chart` (#059669), which the dataviz validator passed. Don't swap it for `--accent` on light backgrounds.
-- Don't commit the TikTok reference images. They aren't ours.
+- Run e2e here with `PW_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome`. The `laptop` project only runs `tests/e2e/laptop.spec.ts`, and the phone projects ignore that file.
+- `public/sw-reminders.js` is plain JS running inside the service worker. It opens the `yourself` DB without a version and never creates or upgrades it. If you bump the Dexie version, stores stay compatible as long as names don't change.
+- Notification permission must be requested from a tap. When the AI turns reminders on, the setting changes, but the user still has to allow notifications in Settings → Reminders.
+- On the laptop chart split, `layoutId` is off on purpose; on the phone it's on.
+- Gemma has no system role, so everything goes in one user turn.
+- The AI addresses items by name; the UI passes ids.
+- Only the newest toast keeps an Undo.
+- Don't import `src/lib/hooks.ts` or pages into unit tests (they touch `location`). Pure logic lives in `src/lib/*`.
+- Don't commit the TikTok reference images.

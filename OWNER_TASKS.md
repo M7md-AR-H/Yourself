@@ -39,4 +39,26 @@ Claude deployed it. Every merge to `main` now publishes automatically to **https
 | **Chart** | Frosted blocks, rings in the pillar squares, outline on things done today | Text cut off in the squares |
 | With Gemma on: Settings → **Test the assistant** → Run test → **Copy results** | A score like 60/85; paste the copied text to me | It stops with an error |
 
+### New in session 3 (phone)
+
+| Do this | You should see | Broken if… |
+|---|---|---|
+| Settings → **Reminders** → Turn on reminders → Allow | "On" with a green dot | Nothing happens, or Chrome never asks |
+| Type `remind me to drink water at` + a time 2 minutes from now (e.g. `at 3:42pm`) | The task shows the time on Today; ~2 min later a notification appears | No notification (tell me if the app was open, in the background, or closed) |
+| Tap the notification | The app opens on Today | Opens nothing |
+| Settings → Reminders → set a daily check-in time 2 minutes ahead | A "Daily check-in" notification | None |
+
+### Laptop (Chrome or Edge, window wider than 900 px)
+
+| Do this | You should see | Broken if… |
+|---|---|---|
+| Open the site on a laptop | Icon bar on the left, no bottom tabs, "Welcome, {name}" at the top | Phone layout stretched wide |
+| Hover the left icons | A small label with the shortcut (e.g. "Chart  G C") | No labels |
+| Press **Ctrl+K** (Mac: **⌘K**), type `sleep`, Enter | The chart with the Sleep block open on the right | Nothing, or the browser's own search opens |
+| Ctrl+K → type `I meditated` → choose "Ask the assistant" | Chat opens and it's logged | Nothing |
+| Press `G` then `R` (not in a text box) | Weekly review opens | Nothing |
+| Press `N` | New note sheet opens | Nothing |
+
+Tip: to move your data, phone Settings → Export backup, then laptop Settings → Import.
+
 Also tell me: how long the first answer took after Gemma was ready, and whether the phone got hot.

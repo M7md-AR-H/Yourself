@@ -1,18 +1,18 @@
 # Owner tasks (things only you can do)
 
 ## 1. ☐ Turn on GitHub Pages (only if the address below doesn't open)
-Claude now deploys automatically by publishing to a `gh-pages` branch, which usually switches Pages on by itself. If https://m7md-ar-h.github.io/yourself/ still shows a 404 after a few minutes:
+Claude now deploys automatically by publishing to a `gh-pages` branch, which usually switches Pages on by itself. If https://m7md-ar-h.github.io/Yourself/ still shows a 404 after a few minutes:
 1. Open https://github.com/m7md-ar-h/yourself on a laptop or phone browser.
 2. Click **Settings** (top bar of the repo) → **Pages** (left menu).
 3. Under **Build and deployment → Source**, choose **Deploy from a branch**, then branch **gh-pages**, folder **/ (root)** → **Save**.
-4. Wait ~2 minutes. The address is **https://m7md-ar-h.github.io/yourself/**.
+4. Wait ~2 minutes. The address is **https://m7md-ar-h.github.io/Yourself/**.
 - Nothing to store; no secrets needed.
 - **Confirm it worked:** the address opens the "Become who you're working towards." screen.
 
 ## 2. ☐ Test on the POCO F5
 1. On the phone, open **Chrome** (not Mi Browser). Make sure Chrome is updated (Play Store → Chrome → Update).
 2. Connect to **Wi‑Fi** (the AI download is 0.7 GB).
-3. Open https://m7md-ar-h.github.io/yourself/.
+3. Open https://m7md-ar-h.github.io/Yourself/.
 4. Chrome menu (⋮) → **Add to Home screen** → **Install**. Open it from the home screen.
 5. Follow "Try it yourself" below and send me what broke (screenshots help).
 

@@ -24,7 +24,7 @@ npm run dev
 
 Checks: `npm run typecheck`, `npm run lint`, `npm test` (unit), `npm run e2e` (Playwright, phone viewports). In this cloud box, run e2e with `PW_CHROMIUM=/opt/pw-browsers/chromium-1243/chrome-linux64/chrome npm run e2e`.
 
-Deploy: pushing to `main` runs `.github/workflows/deploy.yml` → GitHub Pages (needs a one-time setting, see `OWNER_TASKS.md`).
+Deploy: every merge to `main` runs `.github/workflows/deploy.yml` → live at https://m7md-ar-h.github.io/Yourself/.
 
 ## Code map
 
@@ -57,7 +57,8 @@ Deploy: pushing to `main` runs `.github/workflows/deploy.yml` → GitHub Pages (
 - [x] PWA (installable, offline app shell), GitHub Pages deploy workflow, CI
 - [x] Unit tests (105) + e2e tests (18 across POCO F5 light/dark + 360px)
 - [x] Code review (Sonnet) — 15 medium/low findings fixed, no high-severity issues
-- [ ] Owner: enable GitHub Pages and test on the POCO F5 (`OWNER_TASKS.md`)
+- [x] Deployed to GitHub Pages (by Claude, 2026-11-04)
+- [ ] Owner: test on the POCO F5 (`OWNER_TASKS.md`)
 - [ ] Tune the prompt against real Gemma output on the phone (needs a test run)
 
 ### Phase 2 — Phone polish

@@ -1,13 +1,7 @@
 # Owner tasks (things only you can do)
 
-## 1. ☐ Turn on GitHub Pages (only if the address below doesn't open)
-Claude now deploys automatically by publishing to a `gh-pages` branch, which usually switches Pages on by itself. If https://m7md-ar-h.github.io/Yourself/ still shows a 404 after a few minutes:
-1. Open https://github.com/m7md-ar-h/yourself on a laptop or phone browser.
-2. Click **Settings** (top bar of the repo) → **Pages** (left menu).
-3. Under **Build and deployment → Source**, choose **Deploy from a branch**, then branch **gh-pages**, folder **/ (root)** → **Save**.
-4. Wait ~2 minutes. The address is **https://m7md-ar-h.github.io/Yourself/**.
-- Nothing to store; no secrets needed.
-- **Confirm it worked:** the address opens the "Become who you're working towards." screen.
+## 1. ☑ GitHub Pages — done (2026-11-04)
+Claude deployed it. Every merge to `main` now publishes automatically to **https://m7md-ar-h.github.io/Yourself/**. Nothing for you to do. If the address ever shows a 404, open the repo's **Actions** tab → **Deploy to GitHub Pages** and send me the red step.
 
 ## 2. ☐ Test on the POCO F5
 1. On the phone, open **Chrome** (not Mi Browser). Make sure Chrome is updated (Play Store → Chrome → Update).

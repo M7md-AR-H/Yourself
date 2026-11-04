@@ -17,7 +17,7 @@
 ## Current state
 - **Works (verified here):** everything above, in light and dark mode, at 393 px and 360 px, with no horizontal scroll.
 - **Not verified:** Gemma on a real phone, and voice (headless Chromium has no microphone). The voice and WebLLM code follow the documented APIs but have never run.
-- **Deploy:** see the closing note of the session or the Actions tab. If `gh-pages` didn't auto-enable Pages, the owner needs one click (`OWNER_TASKS.md` §1).
+- **Deployed:** live at https://m7md-ar-h.github.io/Yourself/. GitHub reported the deployment as successful, but it couldn't be opened from the cloud box because github.io isn't in its network allowlist. Pages source is "GitHub Actions": the `deploy-pages` step is what actually publishes, and the `gh-pages` push is a harmless backup. The API step that tries to change Pages settings always gets a 403, which is expected.
 
 ## Next steps (in order)
 1. Owner phone test (`OWNER_TASKS.md` §2), including **Settings → Test the assistant → Copy results** with Gemma on. Paste the results into the next session.

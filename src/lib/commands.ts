@@ -6,7 +6,7 @@
  */
 import { db as defaultDb, type TableName, type YourselfDB, DEFAULT_SETTINGS } from './db';
 import type { Action, Note, Page, Pillar, Task, ThemePref } from './types';
-import { addDays, bestMatch, normalize, uid, ymd } from './util';
+import { addDays, bestMatch, formatDue, normalize, uid, ymd } from './util';
 
 /** A pillar ref is its name ("sleep") or its 1-based slot number (1..8). */
 export type PillarRef = string | number;
@@ -223,12 +223,13 @@ export class Runner {
         return;
       }
       case 'add_task': {
-        const title = str(c.title);
+        const raw = str(c.title);
+        const title = raw.charAt(0).toUpperCase() + raw.slice(1);
         if (!title) return void this.errors.push('No task given.');
         const p = await this.findPillar(c.pillar);
         const t: Task = { id: uid(), title, due: resolveDate(c.due, this.today), done: false, pillarId: p?.id, createdAt: now, updatedAt: now };
         await this.put('tasks', t);
-        this.effects.push(`Task: “${title}”${t.due ? ` · ${t.due === this.today ? 'today' : t.due}` : ''}`);
+        this.effects.push(`Task: “${title}”${t.due ? ` · ${formatDue(t.due, this.today)}` : ''}`);
         return;
       }
       case 'complete_task':
@@ -319,7 +320,7 @@ export async function runCommands(commands: Command[], d: YourselfDB = defaultDb
 
 /** Reverts a RunResult journal (newest change first). */
 export async function undo(journal: JournalEntry[], d: YourselfDB = defaultDb): Promise<void> {
-  await d.transaction('rw', [d.goal, d.pillars, d.actions, d.checkins, d.tasks, d.notes, d.settings], async () => {
+  await d.transaction('rw', [d.goal, d.pillars, d.actions, d.checkins, d.tasks, d.notes, d.settings, d.chat], async () => {
     for (const j of [...journal].reverse()) {
       // eslint-disable-next-line @typescript-eslint/no-explicit-any
       const t = d[j.table] as any;

@@ -75,3 +75,21 @@ export function formatDue(due: string | undefined, today = ymd()): string | unde
   const [y, m, d] = due.split('-').map(Number);
   return new Date(y, m - 1, d).toLocaleDateString(undefined, { weekday: 'short', day: 'numeric', month: 'short' });
 }
+
+/** Soft-hyphenate long words (break before a consonant+vowel pair) so tiny cells wrap cleanly. */
+export function hyph(label: string): string {
+  return label.split(' ').map((w) => {
+    if (w.length <= 6) return w;
+    const V = /[aeiouy]/i, C = /[^aeiouy\W\d]/i;
+    let out = '';
+    let breaks = 0;
+    for (let i = 0; i < w.length; i++) {
+      const ok = i >= 3 && w.length - i >= 3 && C.test(w[i]) && V.test(w[i + 1] ?? '');
+      // V|CV ("Edu-ca-tion") or VC|CV ("Hob-bies")
+      if (ok && (V.test(w[i - 1]) || (C.test(w[i - 1]) && V.test(w[i - 2])))) { out += '\u00AD'; breaks++; }
+      out += w[i];
+    }
+    if (!breaks && w.length > 7) { const m = Math.ceil(w.length / 2); return w.slice(0, m) + '\u00AD' + w.slice(m); }
+    return out;
+  }).join(' ');
+}

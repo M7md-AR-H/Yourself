@@ -1,0 +1,77 @@
+import { expect, test, type Page } from '@playwright/test';
+
+async function onboard(page: Page) {
+  await page.goto('/');
+  await page.getByLabel('What should I call you?').fill('Sam');
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: 'Continue' }).click();
+  await page.getByRole('button', { name: /Start without it/ }).click();
+  await expect(page.getByRole('heading', { level: 1 })).toContainText('Sam');
+}
+
+async function say(page: Page, text: string) {
+  const input = page.locator('#cmd');
+  await input.fill(text);
+  await input.press('Enter');
+  await expect(input).toHaveValue('');
+  await expect(input).toBeEnabled();
+}
+
+test('onboarding creates the starter chart', async ({ page }) => {
+  await onboard(page);
+  await page.getByRole('button', { name: 'Chart', exact: true }).click();
+  await expect(page.getByRole('grid', { name: 'Mandala chart' })).toBeVisible();
+  await expect(page.getByRole('button', { name: /^Sleep: 0% this week/ })).toBeVisible();
+});
+
+test('no horizontal scroll on any page', async ({ page }) => {
+  await onboard(page);
+  for (const p of ['today', 'chart', 'notes', 'chat', 'settings', 'chart?pillar=1', 'chart?pillar=goal']) {
+    await page.goto(`/#/${p}`);
+    await page.waitForTimeout(150);
+    const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
+    expect(overflow, p).toBeLessThanOrEqual(0);
+  }
+});
+
+test('assistant logs a habit and adds a task, with undo', async ({ page }) => {
+  await onboard(page);
+  await say(page, 'I meditated and remind me to call mom tomorrow');
+  await page.goto('/#/chart?pillar=2');
+  await expect(page.getByRole('button', { name: /Meditate 10 min\. 1 of 7 days/ })).toBeVisible();
+  await page.goto('/#/today');
+  await expect(page.getByRole('checkbox', { name: 'Complete Call mom' })).toBeVisible();
+});
+
+test('tap a chart action to log it, tap again to unlog', async ({ page }) => {
+  await onboard(page);
+  await page.goto('/#/chart?pillar=1');
+  const cell = page.getByRole('button', { name: /^Dark room\./ });
+  await cell.click();
+  await expect(cell).toHaveAttribute('aria-pressed', 'true');
+  await cell.click();
+  await expect(cell).toHaveAttribute('aria-pressed', 'false');
+});
+
+test('notes: add by hand, find by search, delete with undo', async ({ page }) => {
+  await onboard(page);
+  await page.getByRole('button', { name: 'Add note or task' }).click();
+  await page.getByLabel('Note', { exact: true }).fill('Bought new running shoes');
+  await page.getByRole('button', { name: 'Save note' }).click();
+  await page.goto('/#/notes');
+  await page.getByLabel('Search notes').fill('shoes');
+  const note = page.getByRole('button', { name: /Bought new running shoes/ });
+  await expect(note).toBeVisible();
+  await note.click();
+  await page.getByRole('button', { name: 'Delete note' }).click();
+  await expect(note).toHaveCount(0);
+  await page.getByRole('button', { name: 'Undo' }).last().click();
+  await expect(note).toBeVisible();
+});
+
+test('state lives in the URL (refresh keeps the open block)', async ({ page }) => {
+  await onboard(page);
+  await page.goto('/#/chart?pillar=3');
+  await page.reload();
+  await expect(page.getByRole('heading', { name: 'Skin' })).toBeVisible();
+});

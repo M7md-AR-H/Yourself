@@ -26,7 +26,7 @@ test('onboarding creates the starter chart', async ({ page }) => {
 
 test('no horizontal scroll on any page', async ({ page }) => {
   await onboard(page);
-  for (const p of ['today', 'chart', 'notes', 'chat', 'settings', 'chart?pillar=1', 'chart?pillar=goal']) {
+  for (const p of ['today', 'chart', 'review', 'review?range=month', 'notes', 'chat', 'settings', 'help', 'help?s=gemma', 'chart?pillar=1', 'chart?pillar=goal']) {
     await page.goto(`/#/${p}`);
     await page.waitForTimeout(150);
     const overflow = await page.evaluate(() => document.documentElement.scrollWidth - window.innerWidth);
@@ -74,4 +74,36 @@ test('state lives in the URL (refresh keeps the open block)', async ({ page }) =
   await page.goto('/#/chart?pillar=3');
   await page.reload();
   await expect(page.getByRole('heading', { name: 'Skin' })).toBeVisible();
+});
+
+test('weekly review shows the logged week and switches range', async ({ page }) => {
+  await onboard(page);
+  await say(page, 'I meditated');
+  await page.getByRole('button', { name: 'Weekly review' }).click();
+  await expect(page.getByRole('heading', { name: 'Your week' })).toBeVisible();
+  await expect(page.getByLabel('Period').locator('xpath=following-sibling::section[1]')).toContainText('1 action logged');
+  await page.getByRole('button', { name: '4 weeks' }).click();
+  await expect(page.getByRole('heading', { name: 'Your month' })).toBeVisible();
+  await expect(page).toHaveURL(/range=month/);
+});
+
+test('help page: open from settings, search, and the assistant opens the right section', async ({ page }) => {
+  await onboard(page);
+  await page.goto('/#/settings');
+  await page.getByRole('button', { name: 'Help' }).click();
+  await expect(page.getByRole('heading', { name: 'Help', level: 1 })).toBeVisible();
+  await page.getByLabel('Search help').fill('backup');
+  await expect(page.getByRole('button', { name: /Backup and moving/ })).toBeVisible();
+  await page.goto('/#/today');
+  await say(page, 'how do I turn on the AI?');
+  await expect(page).toHaveURL(/#\/help\?s=gemma/);
+  await expect(page.getByRole('button', { name: /Turn on the AI/ })).toHaveAttribute('aria-expanded', 'true');
+});
+
+test('chart: done-today shows as an outline, ring per pillar strip', async ({ page }) => {
+  await onboard(page);
+  await say(page, 'I meditated');
+  await page.goto('/#/chart');
+  await expect(page.locator('.cell.today')).toHaveCount(1);
+  await expect(page.getByRole('group', { name: 'Pillars' }).getByRole('button')).toHaveCount(8);
 });

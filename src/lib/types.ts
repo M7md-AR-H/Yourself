@@ -77,4 +77,4 @@ export interface Settings {
   onboarded: boolean;
 }
 
-export type Page = 'today' | 'chart' | 'notes' | 'chat' | 'settings';
+export type Page = 'today' | 'chart' | 'review' | 'notes' | 'chat' | 'settings' | 'help';

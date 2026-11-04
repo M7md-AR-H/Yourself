@@ -1,15 +1,18 @@
 import { useLiveQuery } from 'dexie-react-hooks';
-import { ArrowUp } from 'lucide-react';
+import { ArrowUp, Mic, Square } from 'lucide-react';
 import { useEffect, useRef, useState, type FormEvent } from 'react';
 import { db } from '../lib/db';
 import { navigate, useEngine } from '../lib/hooks';
 import { useAssistant } from '../ui/useAssistant';
+import { useVoice } from '../ui/useVoice';
+import { useToast } from '../ui/Toaster';
 
 const STARTERS = [
   'I slept 8 hours and read in bed',
   'Remind me to pay rent on friday',
   'How am I doing this week?',
   'Note: I felt focused after my walk',
+  'How do I turn on Gemma?',
 ];
 
 export function Chat() {
@@ -28,6 +31,13 @@ export function Chat() {
     end.current?.scrollIntoView({ behavior: matchMedia('(prefers-reduced-motion: reduce)').matches ? 'auto' : 'smooth', block: 'end' });
   }, [messages?.length, busy]);
 
+  const { toast } = useToast();
+  const voice = useVoice({
+    onFinal: (t) => void submit(undefined, t),
+    onInterim: setText,
+    onCloud: () => toast({ title: 'Using Chrome’s online speech service', detail: 'On-device speech isn’t available on this phone, so audio goes to Google.' }),
+    onError: (m) => toast({ title: m }),
+  });
   const submit = async (e?: FormEvent, preset?: string) => {
     e?.preventDefault();
     const msg = preset ?? text;
@@ -72,7 +82,14 @@ export function Chat() {
       <form className="composer glass glass-strong" onSubmit={submit}>
         <label htmlFor="chat-in" className="sr-only">Message</label>
         <input id="chat-in" value={text} onChange={(e) => setText(e.target.value)} placeholder="Message…" autoComplete="off" enterKeyHint="send" />
-        <button className="icon-btn solid" type="submit" aria-label="Send" disabled={!text.trim() || busy}><ArrowUp size={18} /></button>
+        {voice.supported && (!text.trim() || voice.listening) ? (
+          <button className={`icon-btn solid ${voice.listening ? 'rec' : ''}`} type="button" aria-label={voice.listening ? 'Stop listening' : 'Speak'} aria-pressed={voice.listening} disabled={busy}
+            onClick={() => (voice.listening ? voice.stop() : voice.start())}>
+            {voice.listening ? <Square size={14} /> : <Mic size={18} />}
+          </button>
+        ) : (
+          <button className="icon-btn solid" type="submit" aria-label="Send" disabled={!text.trim() || busy}><ArrowUp size={18} /></button>
+        )}
       </form>
     </div>
   );

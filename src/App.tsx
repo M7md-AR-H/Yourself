@@ -5,6 +5,8 @@ import { Chart } from './pages/Chart';
 import { Chat } from './pages/Chat';
 import { Notes } from './pages/Notes';
 import { Onboarding } from './pages/Onboarding';
+import { Review } from './pages/Review';
+import { Help } from './pages/Help';
 import { Settings } from './pages/Settings';
 import { Today } from './pages/Today';
 import { EditorSheet, type EditorTarget } from './ui/EditorSheet';
@@ -52,6 +54,8 @@ export default function App() {
           <main className="shell" id="main">
             {route.page === 'today' && <Today settings={settings} onEdit={setEditor} />}
             {route.page === 'chart' && <Chart />}
+            {route.page === 'review' && <Review />}
+            {route.page === 'help' && <Help />}
             {route.page === 'notes' && <Notes onEdit={setEditor} />}
             {route.page === 'chat' && <Chat />}
             {route.page === 'settings' && <Settings settings={settings} />}

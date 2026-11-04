@@ -16,7 +16,7 @@ export function useAssistant() {
     setBusy(true);
     try {
       const r = await ask(msg);
-      if (r.run.navigate) navigate(r.run.navigate.page, { pillar: r.run.navigate.pillarIndex !== undefined ? r.run.navigate.pillarIndex + 1 : undefined });
+      if (r.run.navigate) navigate(r.run.navigate.page, { pillar: r.run.navigate.pillarIndex !== undefined ? r.run.navigate.pillarIndex + 1 : undefined, s: r.run.navigate.section });
       if (opts.toastReply) {
         toast({ title: r.reply, detail: r.run.effects.join(' · ') || undefined, journal: r.run.journal.length ? r.run.journal : undefined });
       } else if (r.run.journal.length) {

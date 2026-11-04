@@ -8,7 +8,7 @@ import * as engine from '../ai/engine';
 
 /* ---------- Route = URL state (#/page?key=value) ---------- */
 export interface Route { page: Page; params: URLSearchParams }
-const PAGES: Page[] = ['today', 'chart', 'notes', 'chat', 'settings'];
+const PAGES: Page[] = ['today', 'chart', 'review', 'notes', 'chat', 'settings', 'help'];
 
 function parseHash(): Route {
   const h = location.hash.replace(/^#\/?/, '');

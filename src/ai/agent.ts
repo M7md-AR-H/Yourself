@@ -41,12 +41,12 @@ function fallbackCtx(c: Awaited<ReturnType<typeof gatherContext>>): FallbackCont
   };
 }
 
-export async function ask(message: string, opts: { db?: YourselfDB; signal?: AbortSignal; today?: string } = {}): Promise<AgentResult> {
+export async function ask(message: string, opts: { db?: YourselfDB; signal?: AbortSignal; today?: string; readOnly?: boolean } = {}): Promise<AgentResult> {
   const d = opts.db ?? defaultDb;
   const today = opts.today ?? ymd();
   const text = message.trim().slice(0, 2000);
   const ctx = await gatherContext(d, today);
-  await d.chat.put({ id: uid(), role: 'user', text, createdAt: Date.now() });
+  if (!opts.readOnly) await d.chat.put({ id: uid(), role: 'user', text, createdAt: Date.now() });
 
   let commands: Command[] = [];
   let reply = '';
@@ -71,6 +71,7 @@ export async function ask(message: string, opts: { db?: YourselfDB; signal?: Abo
     reply = fb.reply;
   }
 
+  if (opts.readOnly) return { reply, run: { effects: [], errors: [], journal: [] }, usedModel };
   const run = await runCommands(commands, d, today);
   if (run.errors.length) reply = [reply, ...run.errors].filter(Boolean).join(' ');
   if (!reply) reply = run.effects.length ? 'Done.' : 'Got it.';

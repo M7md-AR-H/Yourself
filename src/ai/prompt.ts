@@ -1,6 +1,7 @@
 import type { ChartStats } from '../lib/stats';
 import type { ChatMessage, Goal, Note, Task } from '../lib/types';
 import { ymd } from '../lib/util';
+import { helpForPrompt } from '../lib/help';
 
 export interface PromptContext {
   name: string;
@@ -24,7 +25,7 @@ Commands (fields in brackets):
 - add_note [text, pillar?] -> facts, feelings, ideas, journal entries. Keep the user's words.
 - edit_note [note, text] / delete_note [note]  ("last" = newest note)
 - set_goal [title] / set_pillar [pillar, title] / set_action [pillar, title, replace?] / remove_action [action, pillar?]
-- navigate [page: today|chart|notes|chat|settings, pillar?]
+- navigate [page: today|chart|review|notes|chat|settings|help, pillar?, section?]  (review = weekly trends; help = how to set up and use the app, section = a help id)
 - set_theme [theme: light|dark|system] / set_name [name]
 
 Rules:
@@ -53,6 +54,10 @@ function chartText(stats: ChartStats): string {
     .join('\n');
 }
 
+/** Only spend prompt tokens on the help text when the message is a how-to / setup question. */
+export const isHowTo = (m: string) =>
+  /\b(help|how (do|can|to|does)|where (do|is|can)|setup|set up|install|download|turn on|enable|backup|export|import|privacy|not working|broken|error|webgpu|gemma|model|what can you|what does|explain)\b/i.test(m);
+
 export function buildPrompt(message: string, ctx: PromptContext): string {
   const today = ctx.today ?? ymd();
   const weekday = new Date(today + 'T12:00:00').toLocaleDateString('en-US', { weekday: 'long' });
@@ -75,6 +80,9 @@ Recently done:
 ${done.join('\n') || '- none'}
 Latest notes:
 ${notes.join('\n') || '- none'}`,
+    isHowTo(message)
+      ? `--- App help (answer from this; also navigate to page help with the matching section) ---\n${helpForPrompt()}`
+      : 'If the user asks how to set up or use the app, navigate to page help.',
     hist.length ? `--- Recent chat ---\n${hist.join('\n')}` : '',
     `--- New message ---\nUser: ${message}\nJSON:`,
   ]

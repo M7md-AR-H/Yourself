@@ -33,7 +33,7 @@ export function Toaster({ children }: { children: ReactNode }) {
   const exec = useCallback<Ctx['exec']>(async (cmds, opts) => {
     try {
       const r = await runCommands(cmds);
-      if (r.navigate) navigate(r.navigate.page, { pillar: r.navigate.pillarIndex !== undefined ? r.navigate.pillarIndex + 1 : undefined });
+      if (r.navigate) navigate(r.navigate.page, { pillar: r.navigate.pillarIndex !== undefined ? r.navigate.pillarIndex + 1 : undefined, s: r.navigate.section });
       if (r.errors.length) toast({ title: r.errors[0] });
       else if (!opts?.silent && (r.effects.length || opts?.label)) toast({ title: opts?.label ?? r.effects[0], detail: r.effects.length > 1 ? `+${r.effects.length - 1} more` : undefined, journal: r.journal.length ? r.journal : undefined });
     } catch (e) {

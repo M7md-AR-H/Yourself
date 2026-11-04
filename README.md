@@ -2,7 +2,7 @@
 
 A notes + tasks app built around the **Mandala chart** (the "Japanese method": 1 main goal → 8 pillars → 8 small actions each, on a 9×9 grid). You talk to a **private AI (Gemma) that runs on your phone**; it turns what you say into tasks, notes and check-ins, and the chart fills in with colour to show how your life is going.
 
-**Status (2026-11-04):** Phase 1 (phone MVP) is built and tested in a headless phone-sized browser. Not yet tested on the real POCO F5, and Gemma has not run yet (the cloud build box can't reach Hugging Face). See `HANDOFF.md`.
+**Status (2026-11-04, session 2):** Phase 1 done; Phase 2 part A done (weekly review, help page, voice, AI test set + on-phone test runner, chart redesign). Not yet tested on the real POCO F5, and Gemma has not run yet (the cloud build box can't reach Hugging Face). See `HANDOFF.md`.
 
 ## How it works (short)
 
@@ -60,12 +60,23 @@ Deploy: pushing to `main` runs `.github/workflows/deploy.yml` → GitHub Pages (
 - [ ] Owner: enable GitHub Pages and test on the POCO F5 (`OWNER_TASKS.md`)
 - [ ] Tune the prompt against real Gemma output on the phone (needs a test run)
 
-### Phase 2 — Phone polish (after real-phone feedback)
+### Phase 2 — Phone polish
+Part A (no phone needed, session 2):
+- [x] Eval scorer (`src/ai/eval.ts`) + 85 eval cases (`src/ai/eval-cases.json`)
+- [x] Offline-parser eval in vitest with a regression floor (75/85 = 88%, floor 85%)
+- [x] In-app AI test runner (Settings → Test the assistant) to measure Gemma on the phone
+- [x] Weekly review page (`#/review`): week/last week/4 weeks, pillar trends, daily bars, best/weakest, AI reflection
+- [x] `navigate review` command for the AI
+- [x] Voice input (mic in top bar + chat; on-device speech when Chrome supports it)
+- [x] Chart redesign (owner feedback): frosted 3×3 cards, goal glow, pillar progress rings, serif labels, outline for "done today", pillar strip, liquid-fill action tiles
+- [x] Help page (`#/help`, owner request): setup + usage + troubleshooting; the AI answers from it and opens the right section
+- [x] Offline parser: past-tense task completion ("bought the milk"), fixed note-prefix safety bug
+- [x] Deploy via `gh-pages` branch (owner asked Claude to deploy)
+
+Part B (needs phone feedback):
 - [ ] Fix whatever the phone test finds (performance, keyboard, model memory)
-- [ ] Prompt eval set: ~50 real messages → expected commands, measured per model
+- [ ] Tune the prompt using measured Gemma eval results
 - [ ] Reminders/notifications for due tasks
-- [ ] Weekly review screen ("how did this week go")
-- [ ] Voice input (Web Speech API)
 
 ### Phase 3 — Laptop
 - [ ] Wider layout: left icon rail, bento dashboard, chart + detail side by side
@@ -91,6 +102,12 @@ Deploy: pushing to `main` runs `.github/workflows/deploy.yml` → GitHub Pages (
 | 2026-11-04 | UI passes record ids to commands; the AI passes names | Taps must be exact; small models are better with names |
 | 2026-11-04 | One generation at a time (app-wide queue in `engine.complete`) | WebLLM runs one request at a time; prevents the top bar and chat from clobbering each other |
 | 2026-11-04 | Backup import validates every row, and can be undone | Imported files are untrusted input; a bad file must not brick the app |
+| 2026-11-04 | Eval set (85 cases) scored identically for offline parser (CI) and Gemma (on phone) | Prompt changes must be measured (working rules §2); the phone is the only place Gemma runs |
+| 2026-11-04 | Help content in one file (`src/lib/help.ts`) used by the page and the AI | One source of truth; AI answers "how do I…" from the same text |
+| 2026-11-04 | Help text enters the prompt only for how-to messages | Keeps the 1B model's prompt short (speed on phone) |
+| 2026-11-04 | Chart marks use `--chart: #059669` | Passed the dataviz validator (≥3:1 contrast) on light and dark; `#10b981` failed on light |
+| 2026-11-04 | Chart labels in Instrument Serif; "done today" = thin outline, not a dot | Owner feedback: smaller, nicer text; no big dots. Serif is narrower, fits 38 px cells |
+| 2026-11-04 | Deploy by pushing `dist/` to `gh-pages` from Actions | Owner asked Claude to deploy; the Actions-source Pages flow needs a settings click Claude can't do, a `gh-pages` branch usually auto-enables Pages |
 | 2026-11-04 | Starter chart includes the 8 pillars + sleep actions from the example; other 56 actions written by me | One-tap start = minimal effort; all editable. |
 
 ## Known limitations
@@ -101,6 +118,8 @@ Deploy: pushing to `main` runs `.github/workflows/deploy.yml` → GitHub Pages (
 | Needs Chrome 121+ with WebGPU for Gemma | WebLLM runs on WebGPU only | A native Android build (MediaPipe / LiteRT) if WebGPU proves unreliable |
 | First AI use needs a 0.7–3.4 GB download | Model weights must be on the device | None (one-time); cached afterwards |
 | No sync between devices | Local-first, no backend yet | Phase 3 decision (export/import works today) |
+| Voice may use Google's servers | Chrome only does on-device speech for some languages/phones | Nothing in-app; the app says when it falls back |
+| Weekly review has no history beyond ~400 days | The chart query loads 400 days of check-ins | Paging or pre-aggregated weekly stats |
 | No reminders/notifications | Not in Phase 1 scope; web push on Android needs extra setup | Phase 2 |
 | Offline parser misses subtle phrasing (e.g. "called mom" isn't matched to the task "Call mom") | It's rules, not a model | Gemma on; or more rules |
 | Chart overview shows action colour only, no action names | 81 cells on a 393 px screen: ~38 px cells are too small for text | Tap a block for names; laptop layout can show them |

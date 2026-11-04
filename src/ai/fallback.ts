@@ -9,6 +9,7 @@
 import type { Command, PillarRef } from '../lib/commands';
 import type { Page, ThemePref } from '../lib/types';
 import { bestMatch, normalize, similarity } from '../lib/util';
+import { findHelp, HELP } from '../lib/help';
 
 export interface FallbackContext {
   pillars: string[];
@@ -232,7 +233,7 @@ const noteBody = (body: string, ctx: FallbackContext): Command[] | null => {
 
 const NOTE_PREFIX = new RegExp(
   '^(?:' +
-    '(?:add|make|create|write|save|take|jot|put|leave)\\s+(?:me\\s+)?(?:a\\s+|an\\s+|this\\s+)?(?:new\\s+|quick\\s+)?note(?:\\s+(?:saying|that says|that|about))?\\s*[:\\-,]?' +
+    '(?:add|make|create|write|save|take|jot|put|leave|keep|store)\\s+(?:me\\s+)?(?:this\\s+|that\\s+|it\\s+)?(?:as\\s+)?(?:a\\s+|an\\s+)?(?:new\\s+|quick\\s+)?note(?:\\s+(?:saying|that says|that|about))?\\s*[:\\-,]?' +
     '|note(?:\\s+to\\s+self)?(?:\\s+that)?\\s*[:\\-,]?' +
     '|remember\\s+that|remember\\s*:' +
     '|(?:write|jot|put|note)\\s+(?:this\\s+|that\\s+|it\\s+)?down(?:\\s+that|\\s*:)?' +
@@ -391,9 +392,11 @@ const setName: Rule = {
 const PAGES: [Page, RegExp][] = [
   ['today', /^(?:today|home|tasks?|to-?dos?|todo list|task list|agenda|dashboard|schedule|day)$/],
   ['chart', /^(?:chart|mandala|mandala chart|stats|statistics|progress|pillars|goals?|overview|habits|actions|streaks?)$/],
+  ['review', /^(?:review|weekly review|week|my week|this week|recap|summary|weekly summary|reflection|trends?)$/],
   ['notes', /^(?:notes?|journal|diary)$/],
   ['chat', /^(?:chat|assistant|ai|coach|messages)$/],
-  ['settings', /^(?:settings?|preferences|options|setup|profile|configuration)$/],
+  ['settings', /^(?:settings?|preferences|options|profile|configuration)$/],
+  ['help', /^(?:help|guide|instructions|tutorial|faq|manual)$/],
 ];
 const pageOf = (t: string): Page | undefined => PAGES.find(([, re]) => re.test(t))?.[0];
 
@@ -422,7 +425,8 @@ const question: Rule = {
   name: 'question',
   run: (s, ctx, o) => {
     if (!(QUESTION_START.test(o) || (/\?$/.test(o) && QUESTION_AUX.test(o)))) return null;
-    if (/\b(?:today|tonight|tomorrow|task|tasks|todo|to do|schedule|plan|agenda|due|remind|reminders|week)\b/i.test(s)) return [{ type: 'navigate', page: 'today' }];
+    if (/\b(?:how am i doing|how did i do|how was my week|this week|last week|my week|progress|trend|trends|review)\b/i.test(s)) return [{ type: 'navigate', page: 'review' }];
+    if (/\b(?:today|tonight|tomorrow|task|tasks|todo|to do|schedule|plan|agenda|due|remind|reminders)\b/i.test(s)) return [{ type: 'navigate', page: 'today' }];
     if (/\b(?:notes?|wrote|journal|diary)\b/i.test(s)) return [{ type: 'navigate', page: 'notes' }];
     const pillar = pillarIn(s, ctx);
     return [{ type: 'navigate', page: 'chart', ...(pillar ? { pillar } : {}) }];
@@ -600,10 +604,53 @@ const datedImperative: Rule = {
   },
 };
 
+const PAST_VERBS: Record<string, string> = {
+  bought: 'buy', paid: 'pay', sent: 'send', made: 'make', got: 'get', wrote: 'write', took: 'take', went: 'go',
+  ate: 'eat', ran: 'run', did: 'do', met: 'meet', read: 'read', sold: 'sell', found: 'find', gave: 'give', brought: 'bring', fixed: 'fix', drew: 'draw',
+};
+/** "bought the milk" / "paid rent!!" / "called mom" → complete the open task they clearly refer to. */
+const pastTask: Rule = {
+  name: 'past_task',
+  run: (s, ctx) => {
+    const t = s.replace(/^(?:i\s+|ok\s+|okay\s+)*(?:just\s+|finally\s+|already\s+)?/i, '').replace(/[,\s]+(?:done|finally|already)$/i, '');
+    const m = t.match(/^([a-z]+)\s+(.+)$/i);
+    if (!m || !ctx.tasks.some((x) => !x.done)) return null;
+    const v = m[1].toLowerCase();
+    if (/^(?:need|feed|seed|speed|bleed|breed|weed|heed|indeed|proceed|exceed|succeed|bed|red|shed|wed)$/.test(v) || /^to\b/i.test(m[2])) return null;
+    const lemma = PAST_VERBS[v] ?? (/(?:[^aeiou])ied$/.test(v) ? v.slice(0, -3) + 'y' : /ed$/.test(v) ? v.replace(/(.)\1ed$/, '$1').replace(/ed$/, '') : null);
+    if (!lemma) return null;
+    const cands = [`${lemma} ${m[2]}`, `${lemma}e ${m[2]}`, ...(PAST_VERBS[v] ? [m[2]] : [])].map(taskRef);
+    let best: { task: { title: string }; score: number } | undefined;
+    for (const c of cands) {
+      const r = matchTask(c, ctx, true);
+      if (r && (!best || r.score > best.score)) best = r;
+    }
+    return best && best.score >= 0.55 ? [{ type: 'complete_task', task: best.task.title }] : null;
+  },
+};
+
+/** "how do I turn on the AI?", "help", "how to backup" → open the help page at the right section. */
+const helpRule: Rule = {
+  name: 'help',
+  whole: true,
+  run: (_s, _ctx, o) => {
+    const t = o.toLowerCase().trim();
+    const asks = /^(?:help\b|how (?:do|can|should) (?:i|you)\b|how to\b|how does\b|where (?:do|can|is)\b|what can you do|what do i do|i need help|i'?m (?:stuck|lost|confused)|(?:show|open) (?:the )?(?:help|guide|instructions|tutorial))/.test(t)
+      || /\b(?:help page|setup guide|instructions)\b/.test(t)
+      || /[,.!]\s*(?:please\s+)?help[!?.]*$/.test(t) || /\b(?:not working|doesn'?t work|won'?t (?:load|start|open)|keeps crashing)\b/.test(t)
+      || (/^(?:setup|set up|install|troubleshoot)/.test(t) && t.split(' ').length <= 8);
+    if (!asks) return null;
+    // "how do I add a task" is fine for help too, but "help me remember to X" is a task, not help
+    if (/^help me (?:remember|to)\b/.test(t)) return null;
+    const sec = findHelp(t);
+    return [{ type: 'navigate', page: 'help', ...(sec ? { section: sec.id } : {}) }];
+  },
+};
+
 /** Ordered: first rule that returns commands wins for a clause. */
 const RULES: Rule[] = [
-  editNote, deleteNote, noteRule, setGoal, setPillar, setAction, removeAction, clearDone, setTheme, setName,
-  question, navigate, editTask, reopenTask, uncheck, completeTask, deleteTask, addTask, checkIn,
+  helpRule, editNote, deleteNote, noteRule, setGoal, setPillar, setAction, removeAction, clearDone, setTheme, setName,
+  question, navigate, editTask, reopenTask, uncheck, completeTask, pastTask, deleteTask, addTask, checkIn,
 ];
 
 /* ------------------------------------------------------------------ driver */
@@ -659,6 +706,10 @@ function describe(c: Command): string {
 }
 
 function replyFor(cmds: Command[]): string {
+  if (cmds.length === 1 && cmds[0].type === 'navigate' && cmds[0].page === 'help') {
+    const h = HELP.find((x) => x.id === (cmds[0] as { section?: string }).section);
+    return h ? `${h.summary} I opened the help page for you.` : 'Here’s the help page: it explains setup and everything the app can do.';
+  }
   if (cmds.length === 1 && cmds[0].type === 'add_note') return 'Saved that as a note.';
   const parts = cmds.map(describe);
   const list = parts.length > 1 ? `${parts.slice(0, -1).join(', ')} and ${parts[parts.length - 1]}` : parts[0];
@@ -666,6 +717,7 @@ function replyFor(cmds: Command[]): string {
 }
 
 function questionReply(c: Command): string {
+  if (c.type === 'navigate' && c.page === 'review') return 'Your weekly review shows how each pillar is trending, opening it now.';
   if (c.type === 'navigate' && c.page === 'today') return 'Your tasks and plan for the day are on the Today page, opening it now.';
   if (c.type === 'navigate' && c.page === 'notes') return 'Your notes live on the Notes page, opening it now.';
   return 'Your chart and progress are the best place to look, opening it now.';

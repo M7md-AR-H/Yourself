@@ -84,6 +84,7 @@ export function Onboarding() {
               </div>
               <button className="btn btn-accent btn-block" onClick={() => finish(true)} disabled={busy}>Download Gemma and start</button>
               <button className="btn btn-light btn-block" onClick={() => finish(false)} disabled={busy}>Start without it (quick offline helper)</button>
+              <p className="label" style={{ textAlign: 'center' }}>You can turn it on later. Settings → Help explains everything.</p>
             </div>
           )}
         </motion.div>

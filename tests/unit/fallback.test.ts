@@ -251,7 +251,7 @@ describe('navigation, settings, questions', () => {
   });
   it('questions only navigate, never change data', () => {
     const a = run('how am I doing?');
-    expect(a.commands).toEqual([{ type: 'navigate', page: 'chart' }]);
+    expect(a.commands).toEqual([{ type: 'navigate', page: 'review' }]);
     expect(a.reply.length).toBeGreaterThan(5);
     expect(run("what's on today?").commands).toEqual([{ type: 'navigate', page: 'today' }]);
     expect(run('did I meditate today?').commands.every((c) => c.type === 'navigate')).toBe(true);

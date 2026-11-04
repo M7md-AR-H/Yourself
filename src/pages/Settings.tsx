@@ -1,12 +1,13 @@
-import { Download, Upload } from 'lucide-react';
+import { Download, HelpCircle, Upload } from 'lucide-react';
 import { useEffect, useRef, useState } from 'react';
 import * as engine from '../ai/engine';
 import { db, TABLES, type TableName } from '../lib/db';
 import type { JournalEntry } from '../lib/commands';
-import { useEngine } from '../lib/hooks';
+import { navigate, useEngine } from '../lib/hooks';
 import type { ModelId, Settings as S, ThemePref } from '../lib/types';
 import { ymd } from '../lib/util';
 import { useToast } from '../ui/Toaster';
+import { EvalPanel } from '../ui/EvalPanel';
 
 export function Settings({ settings }: { settings: S }) {
   const { toast, exec } = useToast();
@@ -71,7 +72,10 @@ export function Settings({ settings }: { settings: S }) {
 
   return (
     <div className="stack-lg">
-      <h1 className="display h-hero">Settings</h1>
+      <div className="between">
+        <h1 className="display h-hero">Settings</h1>
+        <button className="btn btn-light" onClick={() => navigate('help')}><HelpCircle size={16} aria-hidden /> Help</button>
+      </div>
 
       <section className="glass card stack" aria-labelledby="s-you">
         <h2 className="section-title" id="s-you">You</h2>
@@ -152,7 +156,8 @@ export function Settings({ settings }: { settings: S }) {
           }}>Clear chat history</button>
         </div>
       </section>
-      <p className="label" style={{ textAlign: 'center' }}>Yourself · v0.1</p>
+      <EvalPanel />
+      <p className="label" style={{ textAlign: 'center' }}>Yourself · v0.2</p>
     </div>
   );
 }

@@ -61,7 +61,7 @@ export function Today({ settings, onEdit }: { settings: Settings; onEdit: (t: Ed
         <div className="progress" style={{ marginTop: 12 }} aria-hidden><span style={{ transform: `scaleX(${stats.overall})` }} /></div>
         <div className="actions">
           <button className="btn btn-solid" onClick={() => navigate('chart')}>Open chart</button>
-          <button className="btn btn-light" onClick={() => document.getElementById('cmd')?.focus()}>Log something</button>
+          <button className="btn btn-light" onClick={() => navigate('review')}>Weekly review</button>
         </div>
       </motion.section>
 

@@ -20,9 +20,10 @@ export const RESPONSE_SCHEMA = {
           replace: { type: 'string' },
           due: { type: 'string' },
           date: { type: 'string' },
-          page: { type: 'string', enum: ['today', 'chart', 'notes', 'chat', 'settings'] },
+          page: { type: 'string', enum: ['today', 'chart', 'review', 'notes', 'chat', 'settings', 'help'] },
           theme: { type: 'string', enum: ['system', 'light', 'dark'] },
           name: { type: 'string' },
+          section: { type: 'string' },
         },
         required: ['type'],
       },
@@ -117,7 +118,7 @@ export function sanitizeCommand(item: unknown): Command | null {
     case 'delete_note': { const note = s(o.note ?? o.text, 200); return note ? { type: 'delete_note', note } : null; }
     case 'navigate': {
       const page = s(o.page, 20) as Page | undefined;
-      return page && ['today', 'chart', 'notes', 'chat', 'settings'].includes(page) ? { type: 'navigate', page, pillar } : null;
+      return page && ['today', 'chart', 'review', 'notes', 'chat', 'settings', 'help'].includes(page) ? { type: 'navigate', page, pillar, section: s(o.section, 40) } : null;
     }
     case 'set_theme': {
       const theme = s(o.theme, 10) as ThemePref | undefined;

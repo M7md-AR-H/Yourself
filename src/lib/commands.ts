@@ -7,6 +7,7 @@
 import { db as defaultDb, type TableName, type YourselfDB, DEFAULT_SETTINGS } from './db';
 import type { Action, Note, Page, Pillar, Task, ThemePref } from './types';
 import { addDays, bestMatch, formatDue, normalize, uid, ymd } from './util';
+import { findHelp, HELP } from './help';
 
 /** A pillar ref is its name ("sleep") or its 1-based slot number (1..8). */
 export type PillarRef = string | number;
@@ -28,7 +29,7 @@ export type Command =
   | { type: 'add_note'; text: string; pillar?: PillarRef }
   | { type: 'edit_note'; note: string; text: string; id?: string }
   | { type: 'delete_note'; note: string; id?: string }
-  | { type: 'navigate'; page: Page; pillar?: PillarRef }
+  | { type: 'navigate'; page: Page; pillar?: PillarRef; section?: string }
   | { type: 'set_theme'; theme: ThemePref };
 
 export const COMMAND_TYPES = [
@@ -47,7 +48,7 @@ export interface RunResult {
   effects: string[];
   errors: string[];
   journal: JournalEntry[];
-  navigate?: { page: Page; pillarIndex?: number };
+  navigate?: { page: Page; pillarIndex?: number; section?: string };
 }
 
 const WEEKDAYS = ['sunday', 'monday', 'tuesday', 'wednesday', 'thursday', 'friday', 'saturday'];
@@ -298,10 +299,11 @@ export class Runner {
         return;
       }
       case 'navigate': {
-        const pages: Page[] = ['today', 'chart', 'notes', 'chat', 'settings'];
+        const pages: Page[] = ['today', 'chart', 'review', 'notes', 'chat', 'settings', 'help'];
         if (!pages.includes(c.page)) return void this.errors.push(`Unknown page “${c.page}”.`);
         const p = await this.findPillar(c.pillar);
-        this.navigate = { page: c.page, pillarIndex: p?.index };
+        const section = c.page === 'help' && c.section ? (HELP.find((h) => h.id === c.section)?.id ?? findHelp(c.section)?.id) : undefined;
+        this.navigate = { page: c.page, pillarIndex: c.page === 'chart' ? p?.index : undefined, section };
         return;
       }
       case 'set_theme': {

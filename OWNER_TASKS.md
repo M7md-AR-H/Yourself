@@ -1,13 +1,11 @@
 # Owner tasks (things only you can do)
 
-## 1. ☐ Turn on GitHub Pages (one time, ~2 min)
-This gives the app a web address you can open on your phone.
+## 1. ☐ Turn on GitHub Pages (only if the address below doesn't open)
+Claude now deploys automatically by publishing to a `gh-pages` branch, which usually switches Pages on by itself. If https://m7md-ar-h.github.io/yourself/ still shows a 404 after a few minutes:
 1. Open https://github.com/m7md-ar-h/yourself on a laptop or phone browser.
 2. Click **Settings** (top bar of the repo) → **Pages** (left menu).
-3. Under **Build and deployment → Source**, choose **GitHub Actions**.
-4. Go to the **Actions** tab → **Deploy to GitHub Pages** → **Run workflow** → **Run workflow**.
-5. Wait ~2 minutes until it shows a green tick. The address is **https://m7md-ar-h.github.io/yourself/**.
-- If Pages says it needs a paid plan: the repo is private. Either make it public (Settings → General → bottom → Change visibility), or tell me and I'll set up another free host.
+3. Under **Build and deployment → Source**, choose **Deploy from a branch**, then branch **gh-pages**, folder **/ (root)** → **Save**.
+4. Wait ~2 minutes. The address is **https://m7md-ar-h.github.io/yourself/**.
 - Nothing to store; no secrets needed.
 - **Confirm it worked:** the address opens the "Become who you're working towards." screen.
 
@@ -34,5 +32,17 @@ This gives the app a web address you can open on your phone.
 | Settings → **Dark** | Whole app turns dark and is readable | Text hard to read |
 | Turn on airplane mode, reopen the app, log something | Still works (offline) | "No internet" page |
 | Rotate / type with the keyboard open | Nothing covered by the keyboard that you need | Input hidden behind keyboard |
+
+### New in session 2
+
+| Do this | You should see | Broken if… |
+|---|---|---|
+| Today → **Weekly review** | Your score, bars per day, each pillar with +/− change | Empty or error |
+| Tap **4 weeks** | Title says "Your month" | Nothing changes |
+| Type `how do I turn on the AI?` | The Help page opens on "Turn on the AI", and the answer shows at the bottom | Saved as a note |
+| Settings → **Help** | 11 help sections; search works | Missing |
+| Tap the **mic** in the top bar, say "I meditated and journaled" | Text appears, then it's logged | Mic does nothing (tell me what Chrome said) |
+| **Chart** | Frosted blocks, rings in the pillar squares, outline on things done today | Text cut off in the squares |
+| With Gemma on: Settings → **Test the assistant** → Run test → **Copy results** | A score like 60/85; paste the copied text to me | It stops with an error |
 
 Also tell me: how long the first answer took after Gemma was ready, and whether the phone got hot.

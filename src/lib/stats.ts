@@ -34,15 +34,17 @@ export function computeStats(
   checkins: CheckIn[],
   tasks: Task[],
   today = ymd(),
+  windowDays = WINDOW_DAYS,
 ): ChartStats {
-  const windowDates = Array.from({ length: WINDOW_DAYS }, (_, i) => addDays(today, i - (WINDOW_DAYS - 1)));
+  const W = windowDays;
+  const windowDates = Array.from({ length: W }, (_, i) => addDays(today, i - (W - 1)));
   const byAction = new Map<string, Set<string>>();
   for (const c of checkins) {
     if (!byAction.has(c.actionId)) byAction.set(c.actionId, new Set());
     byAction.get(c.actionId)!.add(c.date);
   }
   const weekStart = windowDates[0];
-  const lastWeekStart = addDays(weekStart, -WINDOW_DAYS);
+  const lastWeekStart = addDays(weekStart, -W);
   let thisWeek = 0;
   let lastWeek = 0;
   for (const c of checkins) {
@@ -60,7 +62,7 @@ export function computeStats(
       const days = windowDates.map((d) => set.has(d));
       let streak = 0;
       for (let d = set.has(today) ? today : addDays(today, -1); set.has(d); d = addDays(d, -1)) streak++;
-      aSlots[a.index] = { action: a, score: days.filter(Boolean).length / WINDOW_DAYS, doneToday: set.has(today), streak, days };
+      aSlots[a.index] = { action: a, score: days.filter(Boolean).length / W, doneToday: set.has(today), streak, days };
     }
     const filled = aSlots.filter(Boolean) as ActionStat[];
     slots[p.index] = {
@@ -77,7 +79,7 @@ export function computeStats(
     pillars: slots,
     checkinsThisWeek: thisWeek,
     checkinsLastWeek: lastWeek,
-    doneTasksThisWeek: tasks.filter((t) => t.done && (t.doneAt ?? 0) >= weekStartMs).length,
+    doneTasksThisWeek: tasks.filter((t) => t.done && (t.doneAt ?? 0) >= weekStartMs && (t.doneAt ?? 0) < weekStartMs + W * 864e5 + 36e5).length,
   };
 }
 
